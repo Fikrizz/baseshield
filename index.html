@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseShield — AI Smart Contract Security Auditor</title>
+    <meta name="description" content="Free AI-powered smart contract security auditor built for Base and EVM chains. No API key needed.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#09090b;--bg2:#0f0f12;--bg3:#16161a;--bg4:#1c1c22;
+            --border:rgba(255,255,255,.06);--border2:rgba(255,255,255,.1);--border3:rgba(255,255,255,.15);
+            --text:#fafafa;--text2:#a1a1aa;--text3:#71717a;
+            --accent:#0052ff;--accent2:#4d7cff;--accent3:#a3c0ff;
+            --glow:rgba(0,82,255,.14);--glow2:rgba(0,82,255,.28);
+            --ok:#22c55e;--ok-bg:rgba(34,197,94,.08);
+            --warn:#eab308;--warn-bg:rgba(234,179,8,.08);
+            --err:#ef4444;--err-bg:rgba(239,68,68,.08);
+            --info:#3b82f6;--info-bg:rgba(59,130,246,.08);
+            --orange:#f97316;--orange-bg:rgba(249,115,22,.08);
+            --radius:12px;--radius2:16px;--radius3:24px;
+            --glass:rgba(255,255,255,.03);--glass2:rgba(255,255,255,.05);
+        }
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+        
+        /* Animated mesh background */
+        .mesh-bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+        .mesh-bg::before{content:'';position:absolute;width:600px;height:600px;top:-200px;left:-100px;background:radial-gradient(circle,rgba(0,82,255,.08) 0%,transparent 70%);animation:float1 20s ease-in-out infinite}
+        .mesh-bg::after{content:'';position:absolute;width:500px;height:500px;bottom:-150px;right:-100px;background:radial-gradient(circle,rgba(59,130,246,.06) 0%,transparent 70%);animation:float2 25s ease-in-out infinite}
+        @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(100px,80px)}}
+        @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-80px,-60px)}}
+        
+        .wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:0 20px}
+        
+        /* Header */
+        header{padding:16px 0;position:sticky;top:0;z-index:100;background:rgba(9,9,11,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+        .hdr{display:flex;align-items:center;justify-content:space-between}
+        .logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+        .logo-i{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#003ecb);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 20px rgba(0,82,255,.3)}
+        .logo-t{font-size:17px;font-weight:800;color:var(--text);letter-spacing:-.02em}
+        .logo-sub{font-size:10px;color:var(--text3);font-weight:500;margin-left:2px}
+        .hdr-actions{display:flex;align-items:center;gap:8px}
+        .hdr-btn{padding:7px 14px;border-radius:8px;font-size:11px;font-weight:600;background:var(--glass2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:.2s;text-decoration:none;display:flex;align-items:center;gap:5px}
+        .hdr-btn:hover{border-color:var(--border2);color:var(--text);background:var(--glass)}
+        .pill-free{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.05));color:var(--ok);border:1px solid rgba(34,197,94,.2);letter-spacing:.3px}
+        
+        /* Hero */
+        .hero{text-align:center;padding:56px 0 40px}
+        .hero h1{font-size:clamp(32px,5.5vw,52px);font-weight:900;letter-spacing:-.03em;line-height:1.05;margin-bottom:14px;background:linear-gradient(135deg,#fff 0%,var(--accent2) 40%,var(--accent3) 60%,#fff 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gradient-shift 8s ease infinite}
+        @keyframes gradient-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+        .hero p{font-size:15px;color:var(--text2);max-width:520px;margin:0 auto 28px;line-height:1.7}
+        .hero-stats{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+        .hero-stat{padding:10px 20px;border-radius:12px;background:var(--glass2);border:1px solid var(--border);backdrop-filter:blur(10px);display:flex;align-items:center;gap:8px}
+        .hero-stat .num{font-size:18px;font-weight:800;color:var(--accent2)}
+        .hero-stat .label{font-size:11px;color:var(--text3);font-weight:500}
+        
+        /* Glass card base */
+        .glass-card{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius3);padding:28px;position:relative;backdrop-filter:blur(10px);transition:border-color .3s,box-shadow .3s}
+        .glass-card:hover{border-color:var(--border2)}
+        .glass-card:focus-within{border-color:rgba(0,82,255,.3);box-shadow:0 0 40px rgba(0,82,255,.08)}
+        
+        /* Input section */
+        .input-section{margin-bottom:32px}
+        .input-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+        .input-label{font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px}
+        .chain-select{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:500;background:var(--bg);color:var(--text2);border:1px solid var(--border);cursor:pointer;outline:none}
+        .chain-select:focus{border-color:var(--accent)}
+        
+        textarea{width:100%;min-height:180px;padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'JetBrains Mono','Fira Code',monospace;font-size:12.5px;line-height:1.7;resize:vertical;transition:border-color .2s}
+        textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,82,255,.1)}
+        textarea::placeholder{color:var(--text3)}
+        
+        .input-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:12px;flex-wrap:wrap}
+        .samples{display:flex;gap:6px;flex-wrap:wrap}
+        .sample-btn{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;background:var(--bg3);color:var(--text3);border:1px solid var(--border);cursor:pointer;transition:.2s}
+        .sample-btn:hover{border-color:var(--accent);color:var(--accent2);background:rgba(0,82,255,.05)}
+        
+        .btn{padding:12px 28px;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;font-family:inherit}
+        .btn-primary{background:linear-gradient(135deg,var(--accent),#003ecb);color:#fff;box-shadow:0 4px 20px rgba(0,82,255,.25)}
+        .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 30px rgba(0,82,255,.4)}
+        .btn-primary:active{transform:translateY(0)}
+        .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+        
+        /* Analyzing */
+        .analyzing{display:none;text-align:center;padding:60px 0}
+        .analyzing.show{display:block}
+        .pulse-ring{width:56px;height:56px;margin:0 auto 20px;position:relative}
+        .pulse-ring::before,.pulse-ring::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);animation:pulse 2s ease-out infinite}
+        .pulse-ring::after{animation-delay:1s}
+        @keyframes pulse{0%{transform:scale(.8);opacity:1}100%{transform:scale(2);opacity:0}}
+        .pulse-dot{position:absolute;inset:14px;border-radius:50%;background:var(--accent)}
+        .analyzing-text{font-size:14px;color:var(--text2);margin-bottom:20px}
+        .progress-bar{width:220px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 16px;overflow:hidden}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;width:0%;transition:width .5s ease}
+        .step-indicators{display:flex;justify-content:center;gap:16px;flex-wrap:wrap}
+        .step-dot{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);transition:.3s}
+        .step-dot.active{color:var(--accent)}
+        .step-dot.done{color:var(--ok)}
+        .step-dot .dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:.3s}
+        .step-dot.active .dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+        .step-dot.done .dot{background:var(--ok)}
+        
+        /* Report */
+        .report{display:none;padding-bottom:60px}
+        .report.show{display:block}
+        
+        .contract-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px}
+        .overview-item{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+        .overview-item .val{font-size:20px;font-weight:800;color:var(--accent2)}
+        .overview-item .lbl{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+        
+        .score-section{display:flex;align-items:center;gap:32px;padding:28px;flex-wrap:wrap;background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius3);margin-bottom:16px;backdrop-filter:blur(10px)}
+        .score-ring{width:120px;height:120px;position:relative;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+        .score-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+        .score-ring circle{fill:none;stroke-width:4;stroke-linecap:round}
+        .score-ring .track{stroke:var(--border2)}
+        .score-ring .fill{stroke:var(--accent);stroke-dasharray:339;transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)}
+        .score-val{font-size:36px;font-weight:900;position:relative;z-index:1}
+        .score-label{font-size:10px;color:var(--text3);text-align:center;margin-top:2px;position:relative;z-index:1;text-transform:uppercase;letter-spacing:.5px}
+        .score-info{flex:1;min-width:200px}
+        .score-title{font-size:20px;font-weight:800;margin-bottom:4px}
+        .score-sub{font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+        .severity-bar{display:flex;gap:3px;height:8px;border-radius:4px;overflow:hidden}
+        .severity-bar div{transition:width 1s cubic-bezier(.4,0,.2,1);min-width:0;border-radius:2px}
+        .sev-crit{background:var(--err)}.sev-high{background:var(--orange)}.sev-med{background:var(--warn)}.sev-low{background:var(--ok)}.sev-info{background:var(--info)}
+        .severity-legend{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+        .legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)}
+        .legend-dot{width:8px;height:8px;border-radius:3px}
+        
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:16px}
+        .stat-card{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;transition:border-color .2s}
+        .stat-card:hover{border-color:var(--border2)}
+        .stat-num{font-size:22px;font-weight:900}
+        .stat-label{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+        .stat-card.critical .stat-num{color:var(--err)}
+        .stat-card.high .stat-num{color:var(--orange)}
+        .stat-card.medium .stat-num{color:var(--warn)}
+        .stat-card.low .stat-num{color:var(--ok)}
+        .stat-card.info .stat-num{color:var(--info)}
+        
+        /* Filter tabs */
+        .filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+        .filter-tab{padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;background:var(--glass2);color:var(--text3);border:1px solid var(--border);cursor:pointer;transition:.2s}
+        .filter-tab:hover{border-color:var(--border2);color:var(--text2)}
+        .filter-tab.active{background:rgba(0,82,255,.1);border-color:rgba(0,82,255,.3);color:var(--accent2)}
+        .filter-search{flex:1;min-width:150px;padding:7px 12px;border-radius:8px;font-size:11px;background:var(--bg);color:var(--text);border:1px solid var(--border);outline:none;font-family:inherit}
+        .filter-search:focus{border-color:var(--accent)}
+        .filter-search::placeholder{color:var(--text3)}
+        
+        /* Findings */
+        .findings-card{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius2);padding:24px;margin-bottom:16px}
+        .card-header{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:14px}
+        .card-header .icon{opacity:.6}
+        .finding{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;transition:border-color .2s,transform .1s}
+        .finding:last-child{margin-bottom:0}
+        .finding:hover{border-color:var(--border2);transform:translateX(2px)}
+        .finding-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+        .finding-sev{padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+        .finding-sev.critical{background:var(--err-bg);color:var(--err);border:1px solid rgba(239,68,68,.2)}
+        .finding-sev.high{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(249,115,22,.2)}
+        .finding-sev.medium{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(234,179,8,.2)}
+        .finding-sev.low{background:var(--ok-bg);color:var(--ok);border:1px solid rgba(34,197,94,.2)}
+        .finding-sev.info{background:var(--info-bg);color:var(--info);border:1px solid rgba(59,130,246,.2)}
+        .finding-title{font-size:13px;font-weight:700}
+        .finding-loc{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+        .finding-desc{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px}
+        .finding-code{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);overflow-x:auto;white-space:pre;margin-bottom:10px}
+        .finding-fix{background:rgba(34,197,94,.04);border:1px solid rgba(34,197,94,.12);border-radius:8px;padding:10px 12px}
+        .finding-fix-l{font-size:9px;font-weight:700;color:var(--ok);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+        .finding-fix-t{font-size:11px;color:var(--text2);line-height:1.5}
+        
+        /* Gas */
+        .gas-card{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius2);padding:24px;margin-bottom:16px}
+        .gas-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+        .gas-item:last-child{border-bottom:none}
+        .gas-icon{font-size:14px;margin-top:1px;opacity:.6}
+        .gas-title{font-size:12px;font-weight:700;margin-bottom:2px}
+        .gas-desc{font-size:11px;color:var(--text3);line-height:1.5}
+        
+        /* Actions */
+        .actions{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+        .btn-sm{padding:8px 16px;border-radius:8px;font-size:11px;font-weight:600;background:var(--glass2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:.2s;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
+        .btn-sm:hover{border-color:var(--accent);color:var(--accent2);background:rgba(0,82,255,.05)}
+        
+        /* History sidebar */
+        .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;opacity:0;pointer-events:none;transition:opacity .3s}
+        .sidebar-overlay.show{opacity:1;pointer-events:all}
+        .sidebar{position:fixed;top:0;right:-360px;width:340px;max-width:90vw;height:100vh;background:var(--bg2);border-left:1px solid var(--border);z-index:201;transition:right .3s ease;padding:24px;overflow-y:auto}
+        .sidebar.show{right:0}
+        .sidebar-title{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+        .sidebar-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px}
+        .sidebar-close:hover{color:var(--text)}
+        .history-item{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;cursor:pointer;transition:.2s}
+        .history-item:hover{border-color:var(--accent);background:rgba(0,82,255,.03)}
+        .history-name{font-size:12px;font-weight:700;margin-bottom:4px}
+        .history-meta{display:flex;gap:8px;font-size:10px;color:var(--text3)}
+        .history-score{font-weight:700}
+        .history-empty{text-align:center;color:var(--text3);font-size:12px;padding:40px 0}
+        
+        /* Toast */
+        .toast-container{position:fixed;bottom:20px;right:20px;z-index:300;display:flex;flex-direction:column;gap:8px}
+        .toast{padding:12px 20px;border-radius:10px;font-size:12px;font-weight:600;background:var(--bg3);border:1px solid var(--border);color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,.3);animation:toast-in .3s ease;backdrop-filter:blur(10px)}
+        @keyframes toast-in{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+        
+        /* Footer */
+        footer{text-align:center;padding:32px 0;color:var(--text3);font-size:11px;border-top:1px solid var(--border)}
+        footer a{color:var(--accent2);text-decoration:none}
+        footer a:hover{text-decoration:underline}
+        
+        /* Responsive */
+        @media(max-width:640px){
+            .score-section{flex-direction:column;text-align:center}
+            .input-footer{flex-direction:column}
+            .samples{justify-content:center}
+            .hero-stats{flex-direction:column;align-items:center}
+            .filter-bar{flex-direction:column}
+        }
+        /* Tab navigation */
+        .tabs{display:flex;gap:4px;margin-bottom:20px;padding:4px;background:var(--glass2);border:1px solid var(--border);border-radius:12px;backdrop-filter:blur(10px)}
+        .tab{flex:1;padding:10px 14px;border-radius:8px;font-size:12px;font-weight:600;background:transparent;color:var(--text3);border:none;cursor:pointer;transition:.2s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
+        .tab:hover{color:var(--text2)}
+        .tab.active{background:rgba(0,82,255,.12);color:var(--accent2);box-shadow:0 0 16px rgba(0,82,255,.1)}
+        .tab-panel{display:none}
+        .tab-panel.active{display:block}
+        
+        /* Diff specific */
+        .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+        .diff-grid textarea{min-height:140px}
+        .diff-side{display:flex;flex-direction:column;gap:8px}
+        .diff-side label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+        .diff-result{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+        .diff-card{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius2);padding:18px}
+        .diff-card.v1{border-color:rgba(239,68,68,.2)}
+        .diff-card.v2{border-color:rgba(34,197,94,.2)}
+        .diff-card-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;color:var(--text3)}
+        .diff-card.v1 .diff-card-h{color:var(--err)}
+        .diff-card.v2 .diff-card-h{color:var(--ok)}
+        .diff-score{font-size:32px;font-weight:900;margin-bottom:6px}
+        .diff-arrow{display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--accent);margin:8px 0}
+        .diff-changes{margin-bottom:16px}
+        .diff-change{padding:10px 14px;border-radius:10px;margin-bottom:6px;font-size:12px;display:flex;align-items:center;gap:8px}
+        .diff-change.fixed{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);color:var(--ok)}
+        .diff-change.added{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);color:var(--err)}
+        .diff-change.unchanged{background:var(--glass2);border:1px solid var(--border);color:var(--text3)}
+        
+        /* Approvals */
+        .approval-row{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:.2s}
+        .approval-row:hover{border-color:var(--border2)}
+        .approval-risk{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+        .approval-risk.critical{background:var(--err-bg);color:var(--err);border:1px solid rgba(239,68,68,.2)}
+        .approval-risk.high{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(249,115,22,.2)}
+        .approval-risk.medium{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(234,179,8,.2)}
+        .approval-risk.low{background:var(--ok-bg);color:var(--ok);border:1px solid rgba(34,197,94,.2)}
+        .approval-info{flex:1;min-width:200px}
+        .approval-token{font-size:13px;font-weight:700;margin-bottom:2px}
+        .approval-spender{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+        .approval-amount{font-size:11px;color:var(--text2);font-weight:600}
+        .approval-revoke{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;background:var(--err-bg);color:var(--err);border:1px solid rgba(239,68,68,.2);cursor:pointer;text-decoration:none}
+        .approval-revoke:hover{background:rgba(239,68,68,.15)}
+        
+        /* Auto-fix */
+        .autofix-btn{padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:linear-gradient(135deg,rgba(0,82,255,.15),rgba(124,58,237,.1));color:var(--accent2);border:1px solid rgba(0,82,255,.25);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;transition:.2s;margin-left:auto}
+        .autofix-btn:hover{background:rgba(0,82,255,.2);transform:translateY(-1px)}
+        .autofix-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+        .autofix-modal.show{display:flex}
+        .autofix-content{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius3);max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+        .autofix-head{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .autofix-title{font-size:14px;font-weight:800}
+        .autofix-body{padding:20px 24px;overflow-y:auto;flex:1}
+        .autofix-pre{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.7;color:var(--text2);overflow-x:auto;white-space:pre;margin-bottom:12px;max-height:340px;overflow-y:auto}
+        .autofix-pre.fix{border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.02)}
+        .autofix-pre-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px}
+        .autofix-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+        
+        /* Certificate */
+        .cert-btn{padding:10px 18px;border-radius:10px;font-size:12px;font-weight:700;background:linear-gradient(135deg,#ffd700,#ff9500);color:#0a0a0a;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:.2s;box-shadow:0 4px 16px rgba(255,165,0,.25)}
+        .cert-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(255,165,0,.4)}
+
+        /* BaseAI Chat */
+        .chat-fab{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));border:none;cursor:pointer;box-shadow:0 8px 32px rgba(99,102,241,.4);z-index:300;display:flex;align-items:center;justify-content:center;font-size:24px;transition:.25s;animation:fab-pulse 2.4s ease-in-out infinite}
+        .chat-fab:hover{transform:translateY(-2px) scale(1.05);box-shadow:0 12px 40px rgba(99,102,241,.6)}
+        .chat-fab.hidden{display:none}
+        @keyframes fab-pulse{0%,100%{box-shadow:0 8px 32px rgba(99,102,241,.4)}50%{box-shadow:0 8px 36px rgba(0,82,255,.7)}}
+        .chat-panel{position:fixed;bottom:24px;right:24px;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 48px);background:var(--bg2);border:1px solid var(--border2);border-radius:18px;z-index:301;display:none;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px rgba(0,82,255,.15)}
+        .chat-panel.show{display:flex;animation:chat-in .3s ease}
+        @keyframes chat-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .chat-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(0,82,255,.06))}
+        .chat-avatar{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent2),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+        .chat-head-info{flex:1;min-width:0}
+        .chat-head-title{font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px}
+        .chat-head-sub{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px}
+        .chat-head-sub .dot-live{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);animation:fab-pulse 1.6s infinite}
+        .chat-close{background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:8px}
+        .chat-close:hover{background:var(--glass2);color:var(--text)}
+        .chat-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+        .chat-msg{max-width:85%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap}
+        .chat-msg.bot{background:var(--glass2);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+        .chat-msg.user{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+        .chat-msg.bot code{background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;font-size:11.5px;color:var(--accent2)}
+        .chat-msg.bot pre{background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:8px;overflow-x:auto;font-size:11px;margin:6px 0;font-family:'JetBrains Mono',monospace}
+        .chat-typing{display:inline-flex;gap:4px;align-items:center;padding:10px 13px;background:var(--glass2);border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;align-self:flex-start}
+        .chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:typing 1.2s infinite}
+        .chat-typing span:nth-child(2){animation-delay:.2s}
+        .chat-typing span:nth-child(3){animation-delay:.4s}
+        @keyframes typing{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+        .chat-suggestions{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 8px}
+        .chat-sugg{padding:6px 10px;border-radius:14px;background:var(--glass2);border:1px solid var(--border);font-size:11px;color:var(--text2);cursor:pointer;transition:.15s;font-family:inherit}
+        .chat-sugg:hover{background:rgba(99,102,241,.15);border-color:var(--accent2);color:var(--text)}
+        .chat-input-wrap{padding:12px 14px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;background:var(--bg)}
+        .chat-input{flex:1;background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:13px;resize:none;max-height:90px;min-height:38px;outline:none;transition:.15s}
+        .chat-input:focus{border-color:var(--accent2);background:var(--bg2)}
+        .chat-send{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;cursor:pointer;color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
+        .chat-send:hover:not(:disabled){transform:translateY(-1px)}
+        .chat-send:disabled{opacity:.4;cursor:not-allowed}
+        @media(max-width:480px){.chat-panel{bottom:0;right:0;width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0}}
+
+        /* Famous Hacks Gallery */
+        .hacks-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;background:linear-gradient(135deg,rgba(255,165,0,.12),rgba(239,68,68,.08));color:#ffa500;border:1px solid rgba(255,165,0,.25);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;transition:.15s}
+        .hacks-btn:hover{background:rgba(255,165,0,.18);transform:translateY(-1px)}
+        .hacks-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px);overflow-y:auto}
+        .hacks-modal.show{display:flex;animation:chat-in .25s ease}
+        .hacks-content{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;max-width:920px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+        .hacks-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(255,165,0,.05),rgba(239,68,68,.03))}
+        .hacks-head h2{font-size:18px;font-weight:900;display:flex;align-items:center;gap:8px}
+        .hacks-head p{font-size:12px;color:var(--text3);margin-top:4px}
+        .hacks-grid{padding:20px 24px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+        .hack-card{background:var(--glass2);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden}
+        .hack-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--err),var(--orange));opacity:.6}
+        .hack-card:hover{border-color:var(--accent2);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+        .hack-loss{font-size:18px;font-weight:900;background:linear-gradient(135deg,#ef4444,#ff9500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hack-name{font-size:14px;font-weight:800;color:var(--text)}
+        .hack-meta{font-size:10px;color:var(--text3);display:flex;gap:8px}
+        .hack-meta span{padding:2px 7px;border-radius:6px;background:var(--bg);border:1px solid var(--border)}
+        .hack-desc{font-size:11.5px;color:var(--text2);line-height:1.5;flex:1}
+        .hack-cta{margin-top:6px;padding:7px 12px;border-radius:8px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);color:var(--accent2);font-size:11px;font-weight:700;text-align:center;transition:.15s}
+        .hack-card:hover .hack-cta{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+        
+    </style>
+</head>
+<body>
+    <div class="mesh-bg"></div>
+    <div class="toast-container" id="toasts"></div>
+    
+    <!-- Sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-title">
+            <span>📋 Scan History</span>
+            <button class="sidebar-close" onclick="toggleSidebar(false)">&times;</button>
+        </div>
+        <div id="historyList"><div class="history-empty">No scans yet</div></div>
+    </div>
+    
+    <div class="wrap">
+        <header>
+            <div class="hdr">
+                <a href="#" class="logo">
+                    <div class="logo-i">🛡</div>
+                    <span class="logo-t">BaseShield</span>
+                    <span class="logo-sub">v2.0</span>
+                </a>
+                <div class="hdr-actions">
+                    <button class="hdr-btn" onclick="toggleSidebar(true)">📋 History</button>
+                    <button class="hdr-btn" onclick="openSettings()">⚙ Settings</button>
+                    <a class="hdr-btn" href="https://github.com/Fikrizz" target="_blank">⭐ GitHub</a>
+                </div>
+            </div>
+        </header>
+        
+        <section class="hero">
+            <h1>Smart Contract<br>Security Auditor</h1>
+            <p>Paste a contract address or Solidity source code. Get instant AI-powered security analysis with actionable fixes.</p>
+            <div class="hero-stats">
+                <div class="hero-stat"><span class="num">40+</span><span class="label">Detection Rules</span></div>
+                <div class="hero-stat"><span class="num">8</span><span class="label">Chains Supported</span></div>
+                <div class="hero-stat"><span class="num">$0</span><span class="label">Always Free</span></div>
+            </div>
+        </section>
+        
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('audit')">🛡 Audit Contract</button>
+            <button class="tab" onclick="switchTab('approvals')">🔓 Approvals</button>
+            <button class="tab" onclick="switchTab('diff')">🔄 Diff Audit</button>
+        </div>
+        
+        <!-- AUDIT PANEL -->
+        <div class="tab-panel active" id="panel-audit">
+        <!-- INPUT -->
+        <section class="glass-card input-section" id="inputSection">
+            <div class="input-top">
+                <div class="input-label">📝 Contract Address or Solidity Code</div>
+                <select class="chain-select" id="chainSelect">
+                    <option value="auto">🔍 Auto-detect Chain</option>
+                    <option value="eth">Ethereum</option>
+                    <option value="base">Base</option>
+                    <option value="arb">Arbitrum</option>
+                    <option value="op">Optimism</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="bsc">BSC</option>
+                    <option value="avax">Avalanche</option>
+                    <option value="zksync">zkSync</option>
+                </select>
+            </div>
+            <textarea id="input" placeholder="0x... contract address or paste Solidity source code here&#10;&#10;Tip: Ctrl+Enter to analyze" spellcheck="false"></textarea>
+            <div class="input-footer">
+                <div class="samples">
+                    <button class="sample-btn" onclick="loadSample('vulnerable')">⚠️ Vulnerable</button>
+                    <button class="sample-btn" onclick="loadSample('erc20')">🪙 ERC-20</button>
+                    <button class="sample-btn" onclick="loadSample('reentrancy')">🔄 Reentrancy</button>
+                    <button class="sample-btn" onclick="loadSample('proxy')">🔀 Proxy</button>
+                    <button class="hacks-btn" onclick="openHacks()">💀 Famous Hacks</button>
+                </div>
+                <button class="btn btn-primary" id="btnAnalyze" onclick="analyze()">
+                    <span>⚡</span> Analyze Contract
+                </button>
+            </div>
+        </section>
+        
+        <!-- LOADING -->
+        <section class="analyzing" id="analyzing">
+            <div class="pulse-ring"><div class="pulse-dot"></div></div>
+            <div class="analyzing-text" id="analyzeText">Analyzing contract...</div>
+            <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+            <div class="step-indicators">
+                <div class="step-dot" id="s1"><span class="dot"></span> Fetch</div>
+                <div class="step-dot" id="s2"><span class="dot"></span> Parse</div>
+                <div class="step-dot" id="s3"><span class="dot"></span> Analyze</div>
+                <div class="step-dot" id="s4"><span class="dot"></span> Report</div>
+            </div>
+        </section>
+        
+        <!-- REPORT -->
+        <section class="report" id="report"></section>
+        </div><!-- /panel-audit -->
+        
+        <!-- APPROVALS PANEL -->
+        <div class="tab-panel" id="panel-approvals">
+            <section class="glass-card input-section">
+                <div class="input-top">
+                    <div class="input-label">🔓 Wallet Approval Scanner</div>
+                    <select class="chain-select" id="approvalChain">
+                        <option value="eth">Ethereum</option>
+                        <option value="base">Base</option>
+                        <option value="arb">Arbitrum</option>
+                        <option value="op">Optimism</option>
+                        <option value="polygon">Polygon</option>
+                        <option value="bsc">BSC</option>
+                    </select>
+                </div>
+                <textarea id="walletInput" placeholder="Paste wallet address (0x...) — finds all token approvals and ranks by risk" spellcheck="false" style="min-height:80px"></textarea>
+                <div class="input-footer">
+                    <div class="samples">
+                        <span style="font-size:11px;color:var(--text3)">Scans last 1000 Approval events from Blockscout</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="scanApprovals()">
+                        <span>🔍</span> Scan Approvals
+                    </button>
+                </div>
+            </section>
+            <section class="analyzing" id="approvalsLoading">
+                <div class="pulse-ring"><div class="pulse-dot"></div></div>
+                <div class="analyzing-text">Scanning approvals from blockchain...</div>
+            </section>
+            <section id="approvalsResult"></section>
+        </div>
+        
+        <!-- DIFF PANEL -->
+        <div class="tab-panel" id="panel-diff">
+            <section class="glass-card input-section">
+                <div class="input-label" style="margin-bottom:12px">🔄 Diff Audit — Compare Two Contract Versions</div>
+                <div class="diff-grid">
+                    <div class="diff-side">
+                        <label>Version 1 (old)</label>
+                        <textarea id="diffV1" placeholder="Paste v1 contract source or 0x address..." spellcheck="false"></textarea>
+                    </div>
+                    <div class="diff-side">
+                        <label>Version 2 (new)</label>
+                        <textarea id="diffV2" placeholder="Paste v2 contract source or 0x address..." spellcheck="false"></textarea>
+                    </div>
+                </div>
+                <div class="input-footer">
+                    <span style="font-size:11px;color:var(--text3)">Useful for pre-deploy review after upgrades</span>
+                    <button class="btn btn-primary" onclick="runDiff()">
+                        <span>⚡</span> Run Diff Audit
+                    </button>
+                </div>
+            </section>
+            <section class="analyzing" id="diffLoading">
+                <div class="pulse-ring"><div class="pulse-dot"></div></div>
+                <div class="analyzing-text">Comparing versions...</div>
+            </section>
+            <section id="diffResult"></section>
+        </div>
+        
+        <!-- AUTOFIX MODAL -->
+        <div class="autofix-modal" id="autofixModal" onclick="if(event.target===this)closeAutofix()">
+            <div class="autofix-content">
+                <div class="autofix-head">
+                    <span class="autofix-title">🤖 BaseAI Auto-Fix</span>
+                    <button class="sidebar-close" onclick="closeAutofix()">&times;</button>
+                </div>
+                <div class="autofix-body" id="autofixBody"></div>
+                <div class="autofix-foot">
+                    <button class="btn-sm" onclick="copyAutofix()">📋 Copy Fix</button>
+                    <button class="btn-sm" onclick="closeAutofix()">Close</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            BaseShield — Powered by AI · Built for <a href="https://base.org" target="_blank">Base</a> & EVM chains
+        </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:400;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeSettings()">
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);max-width:520px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+                <h3 style="font-size:18px;font-weight:800;color:var(--text)">⚙ Settings</h3>
+                <button onclick="closeSettings()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1">×</button>
+            </div>
+
+            <div style="margin-bottom:20px">
+                <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">AI Provider</label>
+                <select id="settingsProvider" class="chain-select" style="width:100%;padding:10px 12px;font-size:13px">
+                    <option value="mimo">Xiaomi MiMo V2.5 (recommended, BYO key)</option>
+                    <option value="free">Free public endpoint (no key, rate-limited)</option>
+                </select>
+                <p style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5">MiMo gives the highest-quality audit reasoning. Get a free key from <a href="https://platform.xiaomimimo.com/" target="_blank" style="color:var(--accent2)">platform.xiaomimimo.com</a>.</p>
+            </div>
+
+            <div id="settingsKeyBox" style="margin-bottom:20px">
+                <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">MiMo API Key</label>
+                <input id="settingsKey" type="password" placeholder="sk-..." style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;outline:none" />
+                <p style="font-size:11px;color:var(--text3);margin-top:6px">Stored locally in your browser only. Never sent anywhere except api.xiaomimimo.com.</p>
+            </div>
+
+            <div id="settingsModelBox" style="margin-bottom:20px">
+                <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Model</label>
+                <select id="settingsModel" class="chain-select" style="width:100%;padding:10px 12px;font-size:13px">
+                    <option value="mimo-v2.5-reasoning">mimo-v2.5-reasoning (best for audit logic)</option>
+                    <option value="mimo-v2.5">mimo-v2.5 (general purpose)</option>
+                </select>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button onclick="testApiKey()" class="hdr-btn" style="padding:10px 16px">🧪 Test</button>
+                <button onclick="clearSettings()" class="hdr-btn" style="padding:10px 16px;color:var(--err)">Clear</button>
+                <button onclick="saveSettings()" class="btn btn-primary" style="padding:10px 22px;font-size:12px">Save</button>
+            </div>
+            <div id="settingsStatus" style="margin-top:14px;font-size:12px;color:var(--text3);min-height:18px"></div>
+        </div>
+    </div>
+
+    <!-- BaseAI Chat FAB -->
+    <button class="chat-fab" id="chatFab" onclick="toggleChat(true)" title="Chat with BaseAI">💬</button>
+
+    <!-- BaseAI Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-head">
+            <div class="chat-avatar">🤖</div>
+            <div class="chat-head-info">
+                <div class="chat-head-title">BaseAI Assistant</div>
+                <div class="chat-head-sub"><span class="dot-live"></span> Powered by AI</div>
+            </div>
+            <button class="chat-close" onclick="toggleChat(false)">&times;</button>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-msg bot">👋 Hi! I'm <b>BaseAI</b>, your smart contract security assistant. Ask me about Solidity vulnerabilities, audit findings, or best practices.</div>
+        </div>
+        <div class="chat-suggestions" id="chatSuggestions">
+            <button class="chat-sugg" onclick="chatAsk('What is reentrancy and how to prevent it?')">What is reentrancy?</button>
+            <button class="chat-sugg" onclick="chatAsk('Explain the latest finding in detail')">Explain latest finding</button>
+            <button class="chat-sugg" onclick="chatAsk('Show me an example of access control vulnerability')">Access control example</button>
+            <button class="chat-sugg" onclick="chatAsk('What are the top 5 Solidity security best practices?')">Top 5 best practices</button>
+        </div>
+        <div class="chat-input-wrap">
+            <textarea class="chat-input" id="chatInput" placeholder="Ask about Solidity, audits, vulnerabilities..." rows="1" onkeydown="chatKey(event)"></textarea>
+            <button class="chat-send" id="chatSendBtn" onclick="chatSend()">➤</button>
+        </div>
+    </div>
+
+    <!-- Famous Hacks Modal -->
+    <div class="hacks-modal" id="hacksModal" onclick="if(event.target===this)closeHacks()">
+        <div class="hacks-content">
+            <div class="hacks-head">
+                <div>
+                    <h2>💀 Famous DeFi Hacks Gallery</h2>
+                    <p>Real exploited contracts. Click any card to load the source and see what BaseShield catches.</p>
+                </div>
+                <button class="chat-close" onclick="closeHacks()">&times;</button>
+            </div>
+            <div class="hacks-grid" id="hacksGrid"></div>
+        </div>
+    </div>
+
+    <script>
+    // ===== BLOCKSCOUT CHAINS =====
+    const CHAINS = {
+        eth:'https://eth.blockscout.com/api',base:'https://base.blockscout.com/api',
+        arb:'https://arbitrum.blockscout.com/api',op:'https://optimism.blockscout.com/api',
+        polygon:'https://polygon.blockscout.com/api',bsc:'https://bsc.blockscout.com/api',
+        avax:'https://avalanche.blockscout.com/api',zksync:'https://zksync.blockscout.com/api'
+    };
+    const CHAIN_NAMES={eth:'Ethereum',base:'Base',arb:'Arbitrum',op:'Optimism',polygon:'Polygon',bsc:'BSC',avax:'Avalanche',zksync:'zkSync'};
+    const CHAIN_EXPLORERS={eth:'https://eth.blockscout.com',base:'https://base.blockscout.com',arb:'https://arbitrum.blockscout.com',op:'https://optimism.blockscout.com',polygon:'https://polygon.blockscout.com',bsc:'https://bsc.blockscout.com',avax:'https://avalanche.blockscout.com',zksync:'https://zksync.blockscout.com'};
+
+    async function fetchFromChain(address, chain) {
+        const r = await fetch(`${CHAINS[chain]}/v2/addresses/${address}`);
+        if (!r.ok) throw new Error('Not found on '+CHAIN_NAMES[chain]);
+        const d = await r.json();
+        if (!d.is_contract) throw new Error('Not a contract on '+CHAIN_NAMES[chain]);
+        const sr = await fetch(`${CHAINS[chain]}/v2/smart-contracts/${address}`);
+        if (!sr.ok) throw new Error('Source not verified on '+CHAIN_NAMES[chain]);
+        const sd = await sr.json();
+        if (sd.source_code) return { source: sd.source_code, name: sd.name||'Unknown', chain, address };
+        throw new Error('No source on '+CHAIN_NAMES[chain]);
+    }
+
+    async function fetchFromAnyChain(address) {
+        const order = ['eth','base','arb','op','polygon','bsc','avax','zksync'];
+        for (const chain of order) {
+            try { return await fetchFromChain(address, chain); } catch(e) { continue; }
+        }
+        throw new Error('Contract not found or not verified on any supported chain');
+    }
+
+    // ===== SAMPLES =====
+    const SAMPLES = {
+        vulnerable: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract VulnerableContract {
+    mapping(address => uint256) public balances;
+    address public owner;
+    
+    constructor() {
+        owner = msg.sender;
+    }
+    
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+    
+    function withdraw(uint256 amount) public {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Transfer failed");
+        balances[msg.sender] -= amount;
+    }
+    
+    function emergencyWithdraw() public {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+}`,
+        erc20: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract BasicERC20 {
+    string public name = "Basic Token";
+    string public symbol = "BASIC";
+    uint8 public decimals = 18;
+    uint256 public totalSupply;
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+    
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    
+    constructor(uint256 _totalSupply) {
+        totalSupply = _totalSupply * 10 ** uint256(decimals);
+        balanceOf[msg.sender] = totalSupply;
+        emit Transfer(address(0), msg.sender, totalSupply);
+    }
+    
+    function transfer(address to, uint256 value) public returns (bool) {
+        require(balanceOf[msg.sender] >= value);
+        balanceOf[msg.sender] -= value;
+        balanceOf[to] += value;
+        emit Transfer(msg.sender, to, value);
+        return true;
+    }
+    
+    function approve(address spender, uint256 value) public returns (bool) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
+        return true;
+    }
+    
+    function transferFrom(address from, address to, uint256 value) public returns (bool) {
+        require(balanceOf[from] >= value);
+        require(allowance[from][msg.sender] >= value);
+        balanceOf[from] -= value;
+        balanceOf[to] += value;
+        allowance[from][msg.sender] -= value;
+        emit Transfer(from, to, value);
+        return true;
+    }
+}`,
+        reentrancy: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract ReentrancyExample {
+    mapping(address => uint256) public balances;
+    
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+    
+    function withdraw() public {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0, "No funds");
+        (bool sent, ) = msg.sender.call{value: bal}("");
+        require(sent, "Failed");
+        balances[msg.sender] = 0;
+    }
+}`,
+        proxy: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SimpleProxy {
+    address public implementation;
+    address public admin;
+    
+    constructor(address _impl) {
+        implementation = _impl;
+        admin = msg.sender;
+    }
+    
+    function upgrade(address newImpl) external {
+        implementation = newImpl;
+    }
+    
+    fallback() external payable {
+        address impl = implementation;
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := delegatecall(gas(), impl, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+    
+    receive() external payable {}
+}`
+    };
+
+    function loadSample(name) {
+        document.getElementById('input').value = SAMPLES[name];
+        document.getElementById('input').focus();
+    }
+
+    // ===== ANALYZER ENGINE =====
+    class Analyzer {
+        constructor(src) {
+            this.src = src;
+            this.lines = src.split('\n');
+            this.findings = [];
+            this.gas = [];
+            this.pragma = (src.match(/pragma\s+solidity\s+([^;]+)/)||[])[1]?.trim();
+            this.license = (src.match(/SPDX-License-Identifier:\s*(\S+)/)||[])[1];
+            this.events = [...src.matchAll(/event\s+(\w+)\s*\(([^)]*)\)/g)].map(m=>({name:m[1],params:m[2]}));
+            this.modifiers = this._parseModifiers();
+            this.contracts = this._parseContracts();
+            this.functions = this._parseFunctions();
+            this.stateVars = this._parseStateVars();
+        }
+        
+        _extractBlock(src, idx) {
+            let d=0,s=src.indexOf('{',idx); if(s<1)return '';
+            for(let i=s;i<src.length;i++){if(src[i]==='{')d++;if(src[i]==='}')d--;if(d===0)return src.substring(s,i+1);}
+            return '';
+        }
+        
+        _lineAt(idx){return this.src.substring(0,idx).split('\n').length;}
+        
+        _parseModifiers(){
+            const mods=[];
+            const re=/modifier\s+(\w+)\s*(?:\([^)]*\))?\s*\{/g;
+            let m;
+            while((m=re.exec(this.src))!==null) mods.push({name:m[1],body:this._extractBlock(this.src,m.index),line:this._lineAt(m.index)});
+            return mods;
+        }
+        
+        _parseContracts(){
+            const cs=[];
+            const re=/(?:abstract\s+)?contract\s+(\w+)(?:\s+is\s+([^{]+))?\s*\{/g;
+            let m;
+            while((m=re.exec(this.src))!==null) cs.push({name:m[1],parents:m[2]?m[2].split(',').map(s=>s.trim()):[],body:this._extractBlock(this.src,m.index)});
+            return cs;
+        }
+        
+        _parseFunctions(){
+            const fs=[];
+            const re=/function\s+(\w+)\s*\(([^)]*)\)(?:\s+(?:external|public|internal|private))?(?:\s+(?:view|pure|payable))?(?:\s+returns\s*\([^)]*\))?\s*\{/g;
+            let m;
+            while((m=re.exec(this.src))!==null){
+                const body=this._extractBlock(this.src,m.index);
+                const sig=m[0].replace(/\s*\{$/,'');
+                fs.push({
+                    name:m[1],params:m[2],sig,body,
+                    line:this._lineAt(m.index),
+                    vis:sig.includes('external')?'external':sig.includes('public')?'public':sig.includes('internal')?'internal':sig.includes('private')?'private':'public',
+                    mods:this.modifiers.filter(mod=>sig.includes(mod.name)).map(mod=>mod.name),
+                    payable:sig.includes('payable')
+                });
+            }
+            return fs;
+        }
+        
+        _parseStateVars(){
+            const vs=[];
+            const cb=this.contracts.map(c=>c.body).join('\n');
+            const re=/^\s*(mapping\s*\([^)]*\)\s+(?:public|private|internal)?\s*(\w+)|((?:uint|int|address|bool|string|bytes|bytes\d+)\d*)\s+(?:public|private|internal)?\s*(\w+)(?:\s*=\s*[^;]+)?);/gm;
+            let m;
+            while((m=re.exec(cb))!==null) vs.push({name:m[2]||m[4],decl:m[0].trim(),line:this._lineAt(m.index)});
+            return vs;
+        }
+        
+        _ctx(line,n=3){
+            const s=Math.max(0,line-n-1),e=Math.min(this.lines.length,line+n);
+            return this.lines.slice(s,e).map((l,i)=>`${s+i+1}: ${l}`).join('\n');
+        }
+        
+        _add(sev,title,loc,desc,code,fix){
+            const k=`${sev}:${title}:${loc}`;
+            if(!this.findings.some(f=>`${f.sev}:${f.title}:${f.loc}`===k))
+                this.findings.push({sev,title,loc,desc,code,fix});
+        }
+        
+        _gas(title,desc){if(!this.gas.some(g=>g.title===title))this.gas.push({title,desc});}
+        
+        checkPragma(){
+            if(!this.pragma) this._add('info','Missing Pragma','File','No pragma solidity version specified.','','Add pragma solidity ^0.8.0;');
+        }
+        
+        checkLicense(){
+            if(!this.license) this._add('info','Missing SPDX License','File','No SPDX license identifier.','','Add // SPDX-License-Identifier: MIT');
+        }
+        
+        checkReentrancy(){
+            for(const f of this.functions){
+                const bl=f.body.split('\n');
+                let callIdx=-1,callType='',stateAfter=false;
+                for(let i=0;i<bl.length;i++){
+                    if(/\.call\{|\.call\.value\(|\.send\(|\.transfer\(/.test(bl[i])){
+                        callIdx=i;
+                        callType=bl[i].includes('.call{')||bl[i].includes('.call.value(')?'low-level call':bl[i].includes('.send(')?'.send()':'.transfer()';
+                        for(let j=i+1;j<bl.length;j++){
+                            if(bl[j].match(/balances\[|mapping.*=|\w+\s*[-+]?=\s*/)&&!bl[j].match(/require|if|emit|\/\/|bool|uint|address/)){
+                                stateAfter=true;break;
+                            }
+                        }
+                    }
+                }
+                if(callIdx>=0&&stateAfter){
+                    this._add('critical','Reentrancy Vulnerability',`function ${f.name}() line ${f.line}`,
+                        `External call (${callType}) before state update. Attacker can re-enter and drain funds.`,
+                        this._ctx(f.line+callIdx),'Update state BEFORE external calls. Add ReentrancyGuard from OpenZeppelin.');
+                }
+                if(callIdx>=0&&!f.mods.includes('nonReentrant')&&!this.src.includes('ReentrancyGuard')){
+                    this._add('medium','Missing Reentrancy Guard',`function ${f.name}()`,
+                        'External call without reentrancy protection.','','Add nonReentrant modifier from OpenZeppelin.');
+                }
+            }
+        }
+        
+        checkAccess(){
+            const sensitive=['withdraw','transfer','mint','burn','pause','unpause','upgrade','destroy','kill','setOwner','changeOwner','addMinter'];
+            for(const f of this.functions){
+                if(sensitive.includes(f.name)){
+                    const hasAuth=f.body.includes('require(msg.sender')||f.body.includes('require(owner')||
+                        f.body.includes('onlyOwner')||f.body.includes('_checkRole')||
+                        f.mods.some(m=>/only|auth/i.test(m));
+                    if(!hasAuth){
+                        this._add('critical','Missing Access Control',`function ${f.name}() line ${f.line}`,
+                            `Sensitive function "${f.name}" has no access control. Anyone can call it.`,
+                            this._ctx(f.line),'Add require(msg.sender == owner) or use OpenZeppelin Ownable.');
+                    }
+                }
+                if(f.body.includes('tx.origin')){
+                    this._add('critical','tx.origin Authorization',`function ${f.name}()`,
+                        'tx.origin is vulnerable to phishing attacks. Attacker can trick owner via malicious contract.',
+                        '','Use msg.sender instead of tx.origin.');
+                }
+            }
+        }
+        
+        checkExternalCalls(){
+            for(const f of this.functions){
+                const bl=f.body.split('\n');
+                for(let i=0;i<bl.length;i++){
+                    if((bl[i].includes('.call{')||bl[i].includes('.call.value('))&&!bl[i].includes('require')&&!bl[i].includes('bool')){
+                        const next=bl[i+1]||'';
+                        if(!next.includes('require')&&!next.includes('success')){
+                            this._add('high','Unchecked External Call',`function ${f.name}() line ${f.line+i}`,
+                                'Return value of low-level call not checked. May fail silently.','',
+                                'Check: (bool success, ) = addr.call(...); require(success);');
+                        }
+                    }
+                    if(bl[i].includes('.send(')&&!bl[i].includes('require')&&!bl[i].includes('bool')){
+                        this._add('high','Unchecked .send()',`function ${f.name}() line ${f.line+i}`,
+                            '.send() returns false on failure instead of reverting.','',
+                            'Use require(addr.send(amount)) or .transfer().');
+                    }
+                }
+            }
+        }
+        
+        checkSelfdestruct(){
+            for(const f of this.functions){
+                if(f.body.includes('selfdestruct')||f.body.includes('suicide')){
+                    const hasAuth=f.body.includes('require(msg.sender')||f.mods.some(m=>/only/i.test(m));
+                    this._add(hasAuth?'high':'critical','Selfdestruct',`function ${f.name}()`,
+                        `selfdestruct permanently destroys the contract.${hasAuth?' Has auth.':' NO AUTH — anyone can destroy!'}`,
+                        '','Remove selfdestruct or add strict access control + timelock.');
+                }
+            }
+        }
+        
+        checkDelegatecall(){
+            for(const f of this.functions){
+                if(f.body.includes('delegatecall')){
+                    this._add('critical','Delegatecall',`function ${f.name}()`,
+                        'delegatecall executes in caller context. Malicious target = total compromise.',
+                        '','Ensure target is trusted and immutable.');
+                }
+            }
+        }
+        
+        checkOverflow(){
+            const isNew=this.pragma&&(this.pragma.includes('^0.8')||this.pragma.includes('>=0.8'));
+            if(!isNew&&!this.src.includes('SafeMath')){
+                if(/\b\w+\s*[+\-*]\s*\w+/.test(this.src)){
+                    this._add('critical','Missing SafeMath','Contract','Solidity <0.8 without SafeMath. Overflow possible.','','Use SafeMath or upgrade to ^0.8.0.');
+                }
+            }
+            if(isNew){
+                for(const f of this.functions){
+                    if(f.body.includes('unchecked')){
+                        this._add('medium','Unchecked Arithmetic',`function ${f.name}()`,
+                            'Arithmetic in unchecked block won\'t revert on overflow.','','Validate bounds before unchecked operations.');
+                    }
+                }
+            }
+        }
+        
+        checkRandomness(){
+            if((this.src.includes('keccak256')||this.src.includes('sha256'))&&(this.src.includes('block.timestamp')||this.src.includes('blockhash')||this.src.includes('block.number'))){
+                this._add('critical','Insecure Randomness','keccak256 + block data',
+                    'Block data is predictable and miner-manipulable.','','Use Chainlink VRF for secure randomness.');
+            }
+        }
+        
+        checkFrontRunning(){
+            for(const f of this.functions){
+                for(const p of ['swap','trade','bid','auction','claim','liquidate']){
+                    if(f.name.toLowerCase().includes(p)&&!f.body.includes('slippage')&&!f.body.includes('minAmount')&&!f.body.includes('deadline')){
+                        this._add('medium','Front-Running / MEV',`function ${f.name}()`,
+                            'No slippage protection detected. Vulnerable to sandwich attacks.','',
+                            'Add slippage tolerance (minAmountOut) and deadline parameter.');
+                    }
+                }
+            }
+        }
+        
+        checkDoS(){
+            for(const f of this.functions){
+                if(f.body.match(/for\s*\([^;]*\.length/)){
+                    this._add('medium','Unbounded Loop (DoS)',`function ${f.name}()`,
+                        'Loop over growing array may run out of gas.','','Use pagination or limit array size.');
+                }
+                const tc=(f.body.match(/\.transfer\(|\.send\(/g)||[]).length;
+                if(tc>1){
+                    this._add('medium','Push Payment DoS',`function ${f.name}()`,
+                        `${tc} transfers — one failing recipient reverts all.`,'','Use pull payment pattern.');
+                }
+            }
+        }
+        
+        checkCentralization(){
+            const r=[];
+            if(this.src.includes('owner')&&!this.src.includes('Ownable')) r.push('Single owner');
+            if(this.src.match(/function\s+pause/)&&this.src.match(/onlyOwner|require.*owner/)) r.push('Owner can pause');
+            if(this.src.match(/function\s+mint/)&&this.src.match(/onlyOwner|require.*owner/)) r.push('Owner can mint');
+            if(this.src.includes('upgrade')||this.src.includes('UUPS')) r.push('Upgradeable');
+            if(r.length) this._add('info','Centralization Risk','Contract',
+                `${r.join('; ')}. Consider multisig, timelock, or DAO governance.`,'',
+                'Use Gnosis Safe multisig + timelock for admin functions.');
+        }
+        
+        checkEvents(){
+            for(const f of this.functions){
+                if((f.vis==='external'||f.vis==='public')&&f.body.match(/\w+\s*[-+]?=\s*[^=]/)&&!f.body.includes('emit')&&f.name!=='constructor'){
+                    this._add('low','Missing Events',`function ${f.name}()`,
+                        'State changes without events. Hard to track off-chain.','',
+                        'Emit events for all state changes.');
+                }
+            }
+        }
+        
+        checkVisibility(){
+            for(const f of this.functions){
+                if(f.vis==='public'&&!f.body.includes('this.')&&!f.body.includes('address(this)')){
+                    this._add('info','Could Be External',`function ${f.name}()`,
+                        'Never called internally. External saves gas (no calldata copy).','',
+                        'Change to external.');
+                }
+            }
+        }
+        
+        checkApproval(){
+            if(this.src.includes('approve')&&this.src.includes('allowance')&&!this.src.includes('increaseAllowance')){
+                this._add('medium','Approve Race Condition','approve()',
+                    'Standard approve() vulnerable to front-running.','',
+                    'Add increaseAllowance() / decreaseAllowance().');
+            }
+        }
+        
+        checkOracle(){
+            for(const f of this.functions){
+                if(f.body.includes('latestRoundData')&&!f.body.match(/answer\s*[>!]=\s*0/)){
+                    this._add('high','Stale Oracle Price',`function ${f.name}()`,
+                        'Oracle may return stale or zero price.','',
+                        'Check answer > 0 and updatedAt is recent.');
+                }
+            }
+        }
+        
+        checkProxy(){
+            if(this.src.includes('delegatecall')&&(this.src.includes('fallback')||this.src.includes('_implementation'))){
+                this._add('high','Proxy Risks','Proxy pattern',
+                    'Storage collision, selector clashing, upgrade risks.','',
+                    'Use EIP-1967 slots. Use OpenZeppelin upgradeable contracts.');
+            }
+        }
+        
+        checkAssembly(){
+            if(this.src.includes('assembly')){
+                this._add('info','Inline Assembly','Contract',
+                    'Assembly bypasses Solidity safety checks.','','Document why. Test edge cases.');
+            }
+        }
+        
+        checkImmutable(){
+            for(const v of this.stateVars){
+                if(v.decl.match(/address\s+public\s+\w+\s*;/)&&!v.decl.includes('immutable')&&!v.decl.includes('constant')){
+                    this._add('info','Could Be Immutable',`${v.name}`,
+                        'Set once but not immutable. Wastes gas on reads.','','Declare immutable.');
+                }
+            }
+        }
+        
+        checkGas(){
+            if(this.src.match(/for\s*\([^;]*\.length[^;]*;/)) this._gas('Cache Array Length','Store length in local var. Saves ~2100 gas/iteration.');
+            if(this.src.match(/\bi\+\+|\bi \+\+/)) this._gas('Use ++i','Pre-increment cheaper than post-increment. ~5 gas/iteration.');
+            if(this.src.match(/uint8|uint16|uint32|uint64|uint128/)) this._gas('Prefer uint256','EVM operates on 256-bit words. Smaller types need masking.');
+            if(this.src.match(/function\s+\w+\([^)]*memory[^)]*\)/)) this._gas('Use calldata','Read-only params: calldata cheaper than memory. ~60 gas/param.');
+            if(this.src.match(/address\s+public\s+\w+\s*;/)&&!this.src.includes('immutable')) this._gas('Use immutable','Set-once vars: saves ~2100 gas/read (no SLOAD).');
+            if(this.pragma&&this.pragma.includes('^0.8')&&this.src.match(/\+\+|\-\-/)) this._gas('Use unchecked { ++i }','Safe increments: skip overflow check. ~80 gas.');
+            if(this.src.includes('struct')) this._gas('Pack Structs','Order by size to fit multiple vars in one 256-bit slot.');
+        }
+        
+        run(){
+            this.checkPragma();this.checkLicense();this.checkReentrancy();
+            this.checkAccess();this.checkExternalCalls();this.checkSelfdestruct();
+            this.checkDelegatecall();this.checkOverflow();this.checkRandomness();
+            this.checkFrontRunning();this.checkDoS();this.checkCentralization();
+            this.checkEvents();this.checkVisibility();this.checkApproval();
+            this.checkOracle();this.checkProxy();this.checkAssembly();
+            this.checkImmutable();this.checkGas();
+            return this._report();
+        }
+        
+        _report(){
+            const s={critical:0,high:0,medium:0,low:0,info:0};
+            for(const f of this.findings) s[f.sev]++;
+            const score=Math.min(100,s.critical*25+s.high*15+s.medium*8+s.low*3+s.info);
+            let lvl=score>=80?'critical':score>=60?'high':score>=40?'medium':score>=20?'low':'info';
+            const t=this.findings.length;
+            let sum=`Found ${t} issue${t!==1?'s':''}: ${s.critical} critical, ${s.high} high, ${s.medium} medium, ${s.low} low, ${s.info} info.\n\n`;
+            if(score>=60) sum+='HIGH RISK — Do NOT deploy without fixing critical issues.';
+            else if(score>=40) sum+='MEDIUM RISK — Review and fix before deployment.';
+            else if(score>=20) sum+='LOW RISK — Minor issues, consider fixing.';
+            else sum+='GOOD — Contract follows best practices.';
+            return {score,level:lvl,summary:sum,findings:this.findings,gas:this.gas,stats:s};
+        }
+    }
+
+
+    // ===== UI HELPERS =====
+    function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+    function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.getElementById('toasts').appendChild(t);setTimeout(()=>t.remove(),3000);}
+    function setStep(id,state){document.getElementById(id).className='step-dot '+state;}
+    
+    function toggleSidebar(show){
+        document.getElementById('sidebar').classList.toggle('show',show);
+        document.getElementById('sidebarOverlay').classList.toggle('show',show);
+        if(show) renderHistory();
+    }
+
+    // ===== HISTORY =====
+    function getHistory(){try{return JSON.parse(localStorage.getItem('baseshield_history')||'[]');}catch(e){return[];}}
+    function saveHistory(entry){
+        const h=getHistory();
+        h.unshift(entry);
+        if(h.length>10) h.length=10;
+        localStorage.setItem('baseshield_history',JSON.stringify(h));
+    }
+    function renderHistory(){
+        const h=getHistory();
+        const el=document.getElementById('historyList');
+        if(!h.length){el.innerHTML='<div class="history-empty">No scans yet.</div>';return;}
+        el.innerHTML=h.map((item,i)=>'<div class="history-item" onclick="loadHistory('+i+')"><div class="history-name">'+esc(item.name||'Unknown')+'</div><div class="history-meta"><span>'+(item.chain?CHAIN_NAMES[item.chain]||item.chain:'Manual')+'</span><span class="history-score" style="color:'+(item.score>=60?'var(--err)':item.score>=40?'var(--warn)':'var(--ok)')+'">Score: '+item.score+'</span><span>'+timeAgo(item.date)+'</span></div></div>').join('');
+    }
+    function loadHistory(idx){
+        const h=getHistory();
+        if(!h[idx]) return;
+        document.getElementById('input').value=h[idx].source||'';
+        toggleSidebar(false);
+        toast('Loaded from history');
+    }
+    function timeAgo(d){
+        if(!d) return '';
+        const s=Math.floor((Date.now()-new Date(d).getTime())/1000);
+        if(s<60) return 'just now';
+        if(s<3600) return Math.floor(s/60)+'m ago';
+        if(s<86400) return Math.floor(s/3600)+'h ago';
+        return Math.floor(s/86400)+'d ago';
+    }
+
+    // ===== REPORT RENDERING =====
+    let lastReport=null,lastInfo=null,lastSource='';
+    const sevColors={critical:'var(--err)',high:'var(--orange)',medium:'var(--warn)',low:'var(--ok)',info:'var(--info)'};
+    const sevNames={critical:'Critical',high:'High',medium:'Medium',low:'Low',info:'Info'};
+
+    function renderReport(r,info){
+        const pct=r.score/100;
+        const dashOff=339-(339*pct);
+        const scoreColor=sevColors[r.level];
+        const total=Math.max(r.findings.length,1);
+        const barW={critical:r.stats.critical/total*100,high:r.stats.high/total*100,medium:r.stats.medium/total*100,low:r.stats.low/total*100,info:r.stats.info/total*100};
+        const analyzer=new Analyzer(lastSource);
+        let html='<div class="contract-overview">';
+        html+='<div class="overview-item"><div class="val">'+analyzer.contracts.length+'</div><div class="lbl">Contracts</div></div>';
+        html+='<div class="overview-item"><div class="val">'+analyzer.functions.length+'</div><div class="lbl">Functions</div></div>';
+        html+='<div class="overview-item"><div class="val">'+analyzer.stateVars.length+'</div><div class="lbl">State Vars</div></div>';
+        html+='<div class="overview-item"><div class="val">'+analyzer.lines.length+'</div><div class="lbl">Lines</div></div>';
+        if(info&&info.chain){html+='<div class="overview-item"><div class="val"><a href="'+CHAIN_EXPLORERS[info.chain]+'/address/'+info.address+'" target="_blank" style="color:var(--accent2);text-decoration:none;font-size:14px">'+CHAIN_NAMES[info.chain]+' ↗</a></div><div class="lbl">Chain</div></div>';}
+        else{html+='<div class="overview-item"><div class="val">Manual</div><div class="lbl">Chain</div></div>';}
+        html+='</div>';
+        
+        html+='<div class="score-section"><div class="score-ring"><svg viewBox="0 0 112 112"><circle class="track" cx="56" cy="56" r="54"/><circle class="fill" cx="56" cy="56" r="54" style="stroke:'+scoreColor+';stroke-dashoffset:'+dashOff+'"/></svg><div><div class="score-val" style="color:'+scoreColor+'">'+r.score+'</div><div class="score-label">Risk Score</div></div></div>';
+        html+='<div class="score-info"><div class="score-title">'+(r.score>=60?'🚨 High Risk':r.score>=40?'⚡ Medium Risk':r.score>=20?'✅ Low Risk':'🛡 Secure')+'</div>';
+        html+='<div class="score-sub">'+esc(r.summary)+'</div>';
+        html+='<div class="severity-bar">';
+        if(r.stats.critical) html+='<div class="sev-crit" style="width:'+barW.critical+'%"></div>';
+        if(r.stats.high) html+='<div class="sev-high" style="width:'+barW.high+'%"></div>';
+        if(r.stats.medium) html+='<div class="sev-med" style="width:'+barW.medium+'%"></div>';
+        if(r.stats.low) html+='<div class="sev-low" style="width:'+barW.low+'%"></div>';
+        if(r.stats.info) html+='<div class="sev-info" style="width:'+barW.info+'%"></div>';
+        html+='</div>';
+        html+='<div class="severity-legend">';
+        Object.entries(r.stats).filter(function(e){return e[1]>0;}).forEach(function(e){html+='<span class="legend-item"><span class="legend-dot" style="background:'+sevColors[e[0]]+'"></span>'+e[1]+' '+sevNames[e[0]]+'</span>';});
+        html+='</div></div></div>';
+        
+        html+='<div class="stats-row">';
+        Object.entries(r.stats).forEach(function(e){html+='<div class="stat-card '+e[0]+'"><div class="stat-num">'+e[1]+'</div><div class="stat-label">'+sevNames[e[0]]+'</div></div>';});
+        html+='</div>';
+        
+        html+='<div class="filter-bar"><button class="filter-tab active" onclick="filterFindings(\'all\')">All ('+r.findings.length+')</button>';
+        if(r.stats.critical) html+='<button class="filter-tab" onclick="filterFindings(\'critical\')">Critical ('+r.stats.critical+')</button>';
+        if(r.stats.high) html+='<button class="filter-tab" onclick="filterFindings(\'high\')">High ('+r.stats.high+')</button>';
+        if(r.stats.medium) html+='<button class="filter-tab" onclick="filterFindings(\'medium\')">Medium ('+r.stats.medium+')</button>';
+        if(r.stats.low) html+='<button class="filter-tab" onclick="filterFindings(\'low\')">Low ('+r.stats.low+')</button>';
+        if(r.stats.info) html+='<button class="filter-tab" onclick="filterFindings(\'info\')">Info ('+r.stats.info+')</button>';
+        html+='<input class="filter-search" placeholder="Search findings..." oninput="searchFindings(this.value)"></div>';
+        
+        if(r.findings.length){
+            html+='<div class="findings-card"><div class="card-header"><span class="icon">🔍</span> Findings ('+r.findings.length+')</div><div id="findingsList">';
+            r.findings.forEach(function(f,idx){
+                html+='<div class="finding" data-sev="'+f.sev+'" data-text="'+esc(f.title+' '+f.desc).toLowerCase()+'">';
+                html+='<div class="finding-head"><span class="finding-sev '+f.sev+'">'+f.sev+'</span><span class="finding-title">'+esc(f.title)+'</span><button class="autofix-btn" onclick="showAutofix('+idx+')">🤖 Auto-Fix</button></div>';
+                if(f.loc) html+='<div class="finding-loc">'+esc(f.loc)+'</div>';
+                html+='<div class="finding-desc">'+esc(f.desc)+'</div>';
+                if(f.code) html+='<div class="finding-code">'+esc(f.code)+'</div>';
+                if(f.fix) html+='<div class="finding-fix"><div class="finding-fix-l">💡 Recommended Fix</div><div class="finding-fix-t">'+esc(f.fix)+'</div></div>';
+                html+='</div>';
+            });
+            html+='</div></div>';
+        }
+        
+        if(r.gas.length){
+            html+='<div class="gas-card"><div class="card-header"><span class="icon">⚡</span> Gas Optimizations ('+r.gas.length+')</div>';
+            r.gas.forEach(function(g){html+='<div class="gas-item"><span class="gas-icon">💡</span><div><div class="gas-title">'+esc(g.title)+'</div><div class="gas-desc">'+esc(g.desc)+'</div></div></div>';});
+            html+='</div>';
+        }
+        
+        html+='<div class="actions"><button class="btn-sm" onclick="exportTXT()">TXT</button><button class="btn-sm" onclick="exportMD()">Markdown</button><button class="btn-sm" onclick="exportJSON()">JSON</button><button class="btn-sm" onclick="copyReport()">📋 Copy</button><button class="btn-sm" onclick="shareLink()">🔗 Share</button>'+(r.score<40?'<button class="cert-btn" onclick="downloadCertificate()">🏆 Get Certificate</button>':'')+'<button class="btn-sm" onclick="reset()">← New Scan</button></div>';
+        
+        document.getElementById('report').innerHTML=html;
+        document.getElementById('report').classList.add('show');
+        document.getElementById('report').scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    // ===== FILTER and SEARCH =====
+    function filterFindings(sev){
+        document.querySelectorAll('.filter-tab').forEach(function(t){t.classList.remove('active');if(t.textContent.toLowerCase().startsWith(sev==='all'?'all':sev))t.classList.add('active');});
+        document.querySelectorAll('.finding').forEach(function(f){f.style.display=(sev==='all'||f.dataset.sev===sev)?'':'none';});
+    }
+    function searchFindings(q){
+        q=q.toLowerCase();
+        document.querySelectorAll('.finding').forEach(function(f){f.style.display=(!q||f.dataset.text.includes(q))?'':'none';});
+    }
+
+    // ===== EXPORTS =====
+    function exportTXT(){
+        if(!lastReport)return;
+        const r=lastReport,i=lastInfo;
+        const NL='\n';
+        let t='BaseShield Security Report'+NL+'='.repeat(50)+NL+NL;
+        t+='Contract: '+(i?.name||'Unknown')+NL+'Chain: '+(i?.chain?CHAIN_NAMES[i.chain]:'Manual')+NL+'Address: '+(i?.address||'N/A')+NL+'Date: '+new Date().toLocaleString()+NL+'Engine: BaseShield v2.0'+NL+NL;
+        t+='Risk Score: '+r.score+'/100 ('+r.level+')'+NL+NL;
+        t+='SUMMARY'+NL+'-'.repeat(40)+NL+r.summary+NL+NL;
+        t+='FINDINGS ('+r.findings.length+')'+NL+'='.repeat(50)+NL+NL;
+        r.findings.forEach(function(f,idx){t+=(idx+1)+'. ['+f.sev.toUpperCase()+'] '+f.title+NL+'   '+f.loc+NL+'   '+f.desc+NL+(f.fix?'   Fix: '+f.fix+NL:'')+NL;});
+        if(r.gas.length){t+=NL+'GAS OPTIMIZATIONS'+NL+'='.repeat(50)+NL+NL;r.gas.forEach(function(g,idx){t+=(idx+1)+'. '+g.title+NL+'   '+g.desc+NL+NL;});}
+        download(t,'text/plain','baseshield-'+(i?.name||'report')+'-'+Date.now()+'.txt');
+    }
+    function exportMD(){
+        if(!lastReport)return;
+        const r=lastReport,i=lastInfo;
+        const NL='\n';
+        let t='# BaseShield Report'+NL+NL;
+        t+='| Field | Value |'+NL+'|---|---|'+NL+'| Contract | '+(i?.name||'Unknown')+' |'+NL+'| Chain | '+(i?.chain?CHAIN_NAMES[i.chain]:'Manual')+' |'+NL+'| Score | **'+r.score+'/100** ('+r.level+') |'+NL+'| Date | '+new Date().toLocaleString()+' |'+NL+NL;
+        t+='## Summary'+NL+NL+r.summary+NL+NL+'## Findings ('+r.findings.length+')'+NL+NL;
+        r.findings.forEach(function(f,idx){t+='### '+(idx+1)+'. '+f.title+NL+NL+'- **Severity:** '+f.sev+NL+'- **Location:** '+f.loc+NL+'- **Description:** '+f.desc+NL+(f.fix?'- **Fix:** '+f.fix+NL:'')+NL;});
+        if(r.gas.length){t+='## Gas Optimizations'+NL+NL;r.gas.forEach(function(g,idx){t+=(idx+1)+'. **'+g.title+'** - '+g.desc+NL;});}
+        download(t,'text/markdown','baseshield-'+(i?.name||'report')+'-'+Date.now()+'.md');
+    }
+    function exportJSON(){
+        if(!lastReport)return;
+        const r=lastReport,i=lastInfo;
+        const data={meta:{tool:'BaseShield v2.0',date:new Date().toISOString(),contract:i?.name,chain:i?.chain,address:i?.address},score:r.score,level:r.level,stats:r.stats,findings:r.findings,gas:r.gas};
+        download(JSON.stringify(data,null,2),'application/json','baseshield-'+(i?.name||'report')+'-'+Date.now()+'.json');
+    }
+    function download(content,type,filename){
+        const blob=new Blob([content],{type:type});
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+        toast('Downloaded: '+filename.split('-').slice(0,2).join('-'));
+    }
+    function copyReport(){
+        if(!lastReport)return;
+        const r=lastReport,i=lastInfo;
+        const NL='\n';
+        let t='BaseShield Report - '+(i?.name||'Unknown')+NL+'Score: '+r.score+'/100 ('+r.level+')'+NL+NL;
+        r.findings.forEach(function(f,idx){t+=(idx+1)+'. ['+f.sev.toUpperCase()+'] '+f.title+' - '+f.desc+NL;});
+        navigator.clipboard.writeText(t).then(function(){toast('Copied to clipboard!');}).catch(function(){toast('Copy failed');});
+    }
+    function shareLink(){
+        if(!lastSource)return;
+        try{
+            const encoded=btoa(encodeURIComponent(lastSource));
+            const url=window.location.origin+window.location.pathname+'#src='+encoded;
+            navigator.clipboard.writeText(url).then(function(){toast('Share link copied!');}).catch(function(){prompt('Copy this link:',url);});
+        }catch(e){toast('Source too large to share via URL');}
+    }
+
+    // ===== MAIN ACTIONS =====
+    function showAnalyzing(){
+        document.getElementById('analyzing').classList.add('show');
+        document.getElementById('report').classList.remove('show');
+        document.getElementById('inputSection').style.display='none';
+        ['s1','s2','s3','s4'].forEach(function(id){setStep(id,'');});
+        document.getElementById('progress').style.width='0%';
+    }
+    function hideAnalyzing(){
+        document.getElementById('analyzing').classList.remove('show');
+        document.getElementById('inputSection').style.display='';
+    }
+
+    async function analyze(){
+        const input=document.getElementById('input').value.trim();
+        if(!input)return;
+        const isAddress=/^0x[a-fA-F0-9]{40}$/.test(input);
+        const selectedChain=document.getElementById('chainSelect').value;
+        
+        showAnalyzing();
+        try{
+            let src,info;
+            if(isAddress){
+                setStep('s1','active');
+                document.getElementById('analyzeText').textContent='Fetching contract source...';
+                document.getElementById('progress').style.width='10%';
+                if(selectedChain!=='auto'){
+                    info=await fetchFromChain(input,selectedChain);
+                } else {
+                    info=await fetchFromAnyChain(input);
+                }
+                src=info.source;
+                setStep('s1','done');
+                document.getElementById('progress').style.width='30%';
+            } else {
+                setStep('s1','done');
+                document.getElementById('progress').style.width='30%';
+                const nm=input.match(/contract\s+(\w+)/);
+                info={name:nm?nm[1]:'Unknown',source:input};
+                src=input;
+            }
+            
+            setStep('s2','active');
+            document.getElementById('analyzeText').textContent='Parsing Solidity code...';
+            await new Promise(function(r){setTimeout(r,150);});
+            setStep('s2','done');
+            document.getElementById('progress').style.width='50%';
+            
+            setStep('s3','active');
+            document.getElementById('analyzeText').textContent='Running 40+ security checks...';
+            await new Promise(function(r){setTimeout(r,100);});
+            const result=new Analyzer(src).run();
+            setStep('s3','done');
+            document.getElementById('progress').style.width='80%';
+            
+            setStep('s4','active');
+            document.getElementById('analyzeText').textContent='Generating report...';
+            await new Promise(function(r){setTimeout(r,100);});
+            setStep('s4','done');
+            document.getElementById('progress').style.width='100%';
+            
+            lastReport=result;lastInfo=info;lastSource=src;
+            
+            saveHistory({name:info?.name||'Unknown',chain:info?.chain||null,score:result.score,date:new Date().toISOString(),source:src.substring(0,500)});
+            
+            await new Promise(function(r){setTimeout(r,300);});
+            hideAnalyzing();
+            renderReport(result,info);
+            
+        }catch(e){
+            hideAnalyzing();
+            toast('Error: '+e.message);
+        }
+    }
+
+    function reset(){
+        document.getElementById('report').classList.remove('show');
+        document.getElementById('report').innerHTML='';
+        document.getElementById('inputSection').style.display='';
+        document.getElementById('input').value='';
+        document.getElementById('input').focus();
+        window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    // ===== KEYBOARD SHORTCUTS =====
+    document.addEventListener('keydown',function(e){
+        if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();analyze();}
+        if(e.key==='Escape'){
+            if(document.getElementById('sidebar').classList.contains('show')){toggleSidebar(false);}
+            else{reset();}
+        }
+        if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){
+            e.preventDefault();document.getElementById('input').focus();
+        }
+    });
+
+    // ===== SHARE LINK LOAD =====
+    window.addEventListener('DOMContentLoaded',function(){
+        document.getElementById('input').focus();
+        const hash=window.location.hash;
+        if(hash.startsWith('#src=')){
+            try{
+                const src=decodeURIComponent(atob(hash.slice(5)));
+                document.getElementById('input').value=src;
+                setTimeout(function(){analyze();},500);
+            }catch(e){}
+        }
+    });
+    // ===== TAB SWITCHING =====
+    function switchTab(name){
+        document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+        document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+        document.querySelector('.tab[onclick*="'+name+'"]').classList.add('active');
+        document.getElementById('panel-'+name).classList.add('active');
+    }
+
+    // ===== WALLET APPROVAL SCANNER =====
+    async function scanApprovals(){
+        const wallet = document.getElementById('walletInput').value.trim();
+        const chain = document.getElementById('approvalChain').value;
+        if(!/^0x[a-fA-F0-9]{40}$/.test(wallet)){toast('Invalid wallet address');return;}
+        document.getElementById('approvalsLoading').classList.add('show');
+        document.getElementById('approvalsResult').innerHTML='';
+        try {
+            // Approval event topic: keccak256("Approval(address,address,uint256)")
+            const APPROVAL_TOPIC = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
+            // Pad wallet to 32 bytes for topic1 (owner)
+            const paddedWallet = '0x000000000000000000000000' + wallet.slice(2).toLowerCase();
+            // Use v1 etherscan-compatible getLogs with topic0=Approval AND topic1=owner
+            // This returns logs from ALL token contracts where this wallet is the owner
+            const base = CHAINS[chain].replace(/\/$/,'');
+            const url = base+'?module=logs&action=getLogs&fromBlock=0&toBlock=latest'
+                +'&topic0='+APPROVAL_TOPIC
+                +'&topic0_1_opr=and'
+                +'&topic1='+paddedWallet;
+            const r = await fetch(url);
+            if(!r.ok) throw new Error('HTTP '+r.status);
+            const data = await r.json();
+            // v1 returns {status,message,result:[...]} — result can also be a string error message
+            if(!data.result || !Array.isArray(data.result)){
+                throw new Error(typeof data.result === 'string' ? data.result : (data.message||'No data'));
+            }
+            const items = data.result;
+            // Aggregate latest approval per (token, spender) — keep last by block
+            const map = new Map();
+            for(const log of items){
+                if(!log.topics || log.topics.length < 3) continue;
+                if(!log.topics[1] || !log.topics[2]) continue;
+                const owner = '0x'+log.topics[1].slice(26).toLowerCase();
+                if(owner !== wallet.toLowerCase()) continue;
+                const spender = '0x'+log.topics[2].slice(26).toLowerCase();
+                const token = (typeof log.address === 'string' ? log.address : (log.address?.hash||'')).toLowerCase();
+                if(!token) continue;
+                let amount;
+                try { amount = BigInt(log.data || '0x0'); } catch(e){ amount = 0n; }
+                const blockNum = typeof log.blockNumber === 'string' ? parseInt(log.blockNumber, 16) : (log.blockNumber||log.block_number||0);
+                const key = token+':'+spender;
+                const existing = map.get(key);
+                if(!existing || blockNum > existing.block){
+                    map.set(key, {
+                        token, spender, amount, block: blockNum,
+                        tx: log.transactionHash || log.transaction_hash
+                    });
+                }
+            }
+            // Filter zero approvals (revoked) and score
+            const approvals = [...map.values()].filter(function(a){ return a.amount > 0n; });
+            const MAX = (1n<<256n)-1n;
+            for(const a of approvals){
+                const isUnlimited = a.amount >= (MAX/2n);
+                a.unlimited = isUnlimited;
+                a.amountStr = isUnlimited ? 'UNLIMITED' : a.amount.toString();
+                a.risk = isUnlimited ? 'critical' : a.amount > (10n**24n) ? 'high' : a.amount > (10n**20n) ? 'medium' : 'low';
+            }
+            approvals.sort(function(a,b){
+                const order = {critical:0, high:1, medium:2, low:3};
+                return order[a.risk] - order[b.risk];
+            });
+            renderApprovals(approvals, chain, wallet);
+        } catch(e){
+            toast('Error: '+e.message);
+            document.getElementById('approvalsResult').innerHTML =
+                '<div class="glass-card" style="text-align:center;padding:30px"><div style="font-size:32px;margin-bottom:10px">⚠️</div><div style="font-weight:700;margin-bottom:6px">Scan failed</div><div style="font-size:12px;color:var(--text3)">'+e.message+'</div></div>';
+        } finally {
+            document.getElementById('approvalsLoading').classList.remove('show');
+        }
+    }
+    
+    function renderApprovals(approvals, chain, wallet){
+        const el = document.getElementById('approvalsResult');
+        if(!approvals.length){
+            el.innerHTML='<div class="glass-card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:10px">✅</div><div style="font-weight:700;margin-bottom:6px">No active approvals</div><div style="font-size:12px;color:var(--text3)">This wallet has no live ERC-20 approvals on '+CHAIN_NAMES[chain]+'.</div></div>';
+            return;
+        }
+        const stats = {critical:0,high:0,medium:0,low:0};
+        approvals.forEach(function(a){stats[a.risk]++;});
+        let html='<div class="stats-row">';
+        html+='<div class="stat-card critical"><div class="stat-num">'+stats.critical+'</div><div class="stat-label">Critical</div></div>';
+        html+='<div class="stat-card high"><div class="stat-num">'+stats.high+'</div><div class="stat-label">High</div></div>';
+        html+='<div class="stat-card medium"><div class="stat-num">'+stats.medium+'</div><div class="stat-label">Medium</div></div>';
+        html+='<div class="stat-card low"><div class="stat-num">'+stats.low+'</div><div class="stat-label">Low</div></div>';
+        html+='<div class="stat-card info"><div class="stat-num">'+approvals.length+'</div><div class="stat-label">Total</div></div>';
+        html+='</div>';
+        html+='<div class="glass-card" style="padding:20px"><div class="card-header"><span class="icon">🔓</span> Active Approvals ('+approvals.length+')</div>';
+        approvals.forEach(function(a){
+            const explorer = CHAIN_EXPLORERS[chain];
+            html+='<div class="approval-row">';
+            html+='<span class="approval-risk '+a.risk+'">'+a.risk+'</span>';
+            html+='<div class="approval-info">';
+            html+='<div class="approval-token"><a href="'+explorer+'/token/'+a.token+'" target="_blank" style="color:var(--text);text-decoration:none">'+a.token.slice(0,6)+'...'+a.token.slice(-4)+' ↗</a></div>';
+            html+='<div class="approval-spender">spender: '+a.spender.slice(0,10)+'...'+a.spender.slice(-6)+'</div>';
+            html+='</div>';
+            html+='<div class="approval-amount">'+(a.unlimited?'♾️ UNLIMITED':a.amountStr.slice(0,10)+'...')+'</div>';
+            html+='<a class="approval-revoke" href="https://revoke.cash/address/'+wallet+'?chainId='+(chain==='eth'?1:chain==='base'?8453:chain==='arb'?42161:chain==='op'?10:chain==='polygon'?137:chain==='bsc'?56:1)+'" target="_blank">Revoke ↗</a>';
+            html+='</div>';
+        });
+        html+='</div>';
+        el.innerHTML = html;
+    }
+    
+    // ===== DIFF AUDIT =====
+    async function runDiff(){
+        const v1Input = document.getElementById('diffV1').value.trim();
+        const v2Input = document.getElementById('diffV2').value.trim();
+        if(!v1Input || !v2Input){toast('Both versions required');return;}
+        document.getElementById('diffLoading').classList.add('show');
+        document.getElementById('diffResult').innerHTML='';
+        try {
+            const [src1,src2] = await Promise.all([resolveSource(v1Input), resolveSource(v2Input)]);
+            const r1 = new Analyzer(src1).run();
+            const r2 = new Analyzer(src2).run();
+            renderDiff(r1, r2);
+        } catch(e){
+            toast('Error: '+e.message);
+        } finally {
+            document.getElementById('diffLoading').classList.remove('show');
+        }
+    }
+    async function resolveSource(input){
+        if(/^0x[a-fA-F0-9]{40}$/.test(input)){
+            const info = await fetchFromAnyChain(input);
+            return info.source;
+        }
+        return input;
+    }
+    function renderDiff(r1, r2){
+        const v1Keys = new Set(r1.findings.map(function(f){return f.sev+':'+f.title;}));
+        const v2Keys = new Set(r2.findings.map(function(f){return f.sev+':'+f.title;}));
+        const fixed = r1.findings.filter(function(f){return !v2Keys.has(f.sev+':'+f.title);});
+        const added = r2.findings.filter(function(f){return !v1Keys.has(f.sev+':'+f.title);});
+        const unchanged = r1.findings.filter(function(f){return v2Keys.has(f.sev+':'+f.title);});
+        const scoreDelta = r2.score - r1.score;
+        const c1 = sevColors[r1.level], c2 = sevColors[r2.level];
+        let html = '<div class="diff-result">';
+        html += '<div class="diff-card v1"><div class="diff-card-h">V1 Score</div><div class="diff-score" style="color:'+c1+'">'+r1.score+'</div><div style="font-size:11px;color:var(--text3)">'+r1.findings.length+' findings · '+r1.level+'</div></div>';
+        html += '<div class="diff-card v2"><div class="diff-card-h">V2 Score</div><div class="diff-score" style="color:'+c2+'">'+r2.score+'</div><div style="font-size:11px;color:var(--text3)">'+r2.findings.length+' findings · '+r2.level+'</div></div>';
+        html += '</div>';
+        const deltaColor = scoreDelta < 0 ? 'var(--ok)' : scoreDelta > 0 ? 'var(--err)' : 'var(--text3)';
+        const deltaSign = scoreDelta > 0 ? '+' : '';
+        html += '<div class="glass-card" style="padding:18px;text-align:center;margin-bottom:16px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">SCORE DELTA</div><div style="font-size:28px;font-weight:900;color:'+deltaColor+'">'+deltaSign+scoreDelta+'</div></div>';
+        html += '<div class="glass-card" style="padding:20px;margin-bottom:16px"><div class="card-header"><span class="icon">📊</span> Changes</div><div class="diff-changes">';
+        if(fixed.length){
+            fixed.forEach(function(f){html+='<div class="diff-change fixed">✅ <strong>FIXED:</strong> ['+f.sev+'] '+esc(f.title)+'</div>';});
+        }
+        if(added.length){
+            added.forEach(function(f){html+='<div class="diff-change added">⚠️ <strong>NEW:</strong> ['+f.sev+'] '+esc(f.title)+'</div>';});
+        }
+        if(unchanged.length){
+            html+='<div class="diff-change unchanged">↔️ <strong>'+unchanged.length+' unchanged</strong> findings remain</div>';
+        }
+        if(!fixed.length && !added.length && !unchanged.length){
+            html+='<div class="diff-change unchanged">No findings detected in either version.</div>';
+        }
+        html += '</div></div>';
+        document.getElementById('diffResult').innerHTML = html;
+    }
+    
+    // ===== AI AUTO-FIX (rule-based templates) =====
+    const FIX_TEMPLATES = {
+        'Reentrancy Vulnerability': function(f){return {explain:"Apply checks-effects-interactions pattern: update state BEFORE the external call, and add OpenZeppelin's ReentrancyGuard for defense-in-depth.",code:'// Add to imports\nimport "@openzeppelin/contracts/security/ReentrancyGuard.sol";\n\n// Inherit ReentrancyGuard\ncontract YourContract is ReentrancyGuard {\n    \n    function withdraw(uint256 amount) public nonReentrant {\n        require(balances[msg.sender] >= amount, "Insufficient");\n        \n        // EFFECTS first (state change)\n        balances[msg.sender] -= amount;\n        \n        // INTERACTIONS last (external call)\n        (bool success, ) = msg.sender.call{value: amount}("");\n        require(success, "Transfer failed");\n    }\n}'};},
+        'Missing Reentrancy Guard': function(f){return {explain:"Add nonReentrant modifier from OpenZeppelin's ReentrancyGuard to prevent reentrancy attacks.",code:'import "@openzeppelin/contracts/security/ReentrancyGuard.sol";\n\ncontract YourContract is ReentrancyGuard {\n    function yourFunction() external nonReentrant {\n        // your logic\n    }\n}'};},
+        'Missing Access Control': function(f){return {explain:"Add OpenZeppelin's Ownable and the onlyOwner modifier so only the deployer can call sensitive functions.",code:'import "@openzeppelin/contracts/access/Ownable.sol";\n\ncontract YourContract is Ownable {\n    constructor() Ownable(msg.sender) {}\n    \n    function sensitiveFunction() external onlyOwner {\n        // protected logic\n    }\n}'};},
+        'tx.origin Authorization': function(f){return {explain:"Replace tx.origin with msg.sender. tx.origin is the original transaction sender and is vulnerable to phishing via malicious intermediate contracts.",code:'// BEFORE (vulnerable)\nrequire(tx.origin == owner, "Not owner");\n\n// AFTER (secure)\nrequire(msg.sender == owner, "Not owner");'};},
+        'Unchecked External Call': function(f){return {explain:"Always check the return value of low-level calls. Failed calls return false instead of reverting.",code:'// BEFORE\naddr.call{value: amount}("");\n\n// AFTER\n(bool success, ) = addr.call{value: amount}("");\nrequire(success, "Call failed");'};},
+        'Unchecked .send()': function(f){return {explain:".send() returns false on failure instead of reverting. Wrap with require() or use .call() which lets you handle failure explicitly.",code:'// BEFORE\nrecipient.send(amount);\n\n// AFTER (option 1: require)\nrequire(recipient.send(amount), "Send failed");\n\n// AFTER (option 2: low-level call, recommended)\n(bool sent, ) = recipient.call{value: amount}("");\nrequire(sent, "Transfer failed");'};},
+        'Selfdestruct': function(f){return {explain:"selfdestruct is deprecated and dangerous. Remove it entirely, or restrict via multisig + timelock if absolutely required for upgrade paths.",code:'// REMOVE selfdestruct entirely (recommended)\n// Or restrict heavily:\n\nimport "@openzeppelin/contracts/access/AccessControl.sol";\n\nfunction emergencyShutdown() external {\n    require(hasRole(MULTISIG_ROLE, msg.sender), "Multisig only");\n    require(block.timestamp >= shutdownTimestamp + 7 days, "Timelock");\n    selfdestruct(payable(treasury));\n}'};},
+        'Delegatecall': function(f){return {explain:"delegatecall executes code in the caller's storage context. Lock the target to a trusted, immutable address.",code:'// Use immutable, audited target\naddress public immutable trustedImpl;\n\nconstructor(address _impl) {\n    trustedImpl = _impl;\n}\n\n// Or use OpenZeppelin proxy with EIP-1967 storage slots\n// import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";'};},
+        'Insecure Randomness': function(f){return {explain:"Block data (timestamp, blockhash, block.number) is predictable and miner-manipulable. Use Chainlink VRF for verifiable randomness.",code:'import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";\nimport "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";\n\ncontract YourContract is VRFConsumerBaseV2 {\n    VRFCoordinatorV2Interface COORDINATOR;\n    \n    function requestRandom() external onlyOwner {\n        COORDINATOR.requestRandomWords(\n            keyHash, subscriptionId, requestConfirmations, callbackGasLimit, numWords\n        );\n    }\n    \n    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {\n        // use randomWords[0] safely\n    }\n}'};},
+        'Approve Race Condition': function(f){return {explain:"Standard approve() can be front-run when changing allowance. Use increaseAllowance/decreaseAllowance from OpenZeppelin instead.",code:'// Use OpenZeppelin ERC20 which provides:\nfunction increaseAllowance(address spender, uint256 added) public returns (bool);\nfunction decreaseAllowance(address spender, uint256 subtracted) public returns (bool);\n\n// Or for users: set approval to 0 first, then to new value:\ntoken.approve(spender, 0);\ntoken.approve(spender, newAmount);'};},
+        'Front-Running / MEV': function(f){return {explain:"Add slippage protection (minAmountOut) and a deadline to prevent sandwich attacks.",code:'function swap(\n    uint256 amountIn,\n    uint256 minAmountOut,  // slippage protection\n    uint256 deadline       // expiry\n) external {\n    require(block.timestamp <= deadline, "Expired");\n    uint256 amountOut = _calculate(amountIn);\n    require(amountOut >= minAmountOut, "Slippage");\n    // ... execute swap\n}'};},
+        'Unbounded Loop (DoS)': function(f){return {explain:"Loops over arrays that can grow may exceed the block gas limit. Use pagination or hard-cap array size.",code:'// Pattern 1: pagination\nfunction processBatch(uint256 start, uint256 end) external {\n    require(end - start <= 100, "Batch too large");\n    for(uint256 i = start; i < end; i++) {\n        _process(items[i]);\n    }\n}\n\n// Pattern 2: hard cap on insertion\nuint256 public constant MAX_ITEMS = 500;\nfunction addItem() external {\n    require(items.length < MAX_ITEMS, "Full");\n    items.push();\n}'};},
+        'Stale Oracle Price': function(f){return {explain:"Always validate Chainlink oracle data: positive price, non-zero updatedAt, recent timestamp, and matching round.",code:'(uint80 roundId, int256 answer, , uint256 updatedAt, uint80 answeredInRound) = oracle.latestRoundData();\nrequire(answer > 0, "Invalid price");\nrequire(updatedAt > 0, "Round incomplete");\nrequire(block.timestamp - updatedAt <= 3600, "Stale price");\nrequire(answeredInRound >= roundId, "Stale round");'};},
+        'Missing Events': function(f){return {explain:"Emit events for all state changes so off-chain indexers and UIs can track contract activity.",code:'event StateChanged(address indexed user, uint256 oldValue, uint256 newValue);\n\nfunction setValue(uint256 newValue) external {\n    uint256 old = value;\n    value = newValue;\n    emit StateChanged(msg.sender, old, newValue);\n}'};},
+        'Could Be External': function(f){return {explain:"Functions never called internally should be 'external' instead of 'public' — saves gas because calldata isn't copied to memory.",code:'// BEFORE\nfunction yourFunction(bytes calldata data) public {\n    // ...\n}\n\n// AFTER (saves ~60 gas per call per parameter)\nfunction yourFunction(bytes calldata data) external {\n    // ...\n}'};},
+        'Could Be Immutable': function(f){return {explain:"Variables set once in the constructor and never modified should be 'immutable' — saves ~2100 gas per read.",code:'// BEFORE\naddress public owner;\nconstructor() { owner = msg.sender; }\n\n// AFTER\naddress public immutable owner;\nconstructor() { owner = msg.sender; }'};},
+        'Missing SPDX License': function(f){return {explain:"Add SPDX license identifier as the first line of every Solidity file.",code:'// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract YourContract { ... }'};},
+        'Missing Pragma': function(f){return {explain:"Pin a specific Solidity compiler version range to avoid surprises with future compiler changes.",code:'// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;  // pin to a known-good version'};},
+        'Centralization Risk': function(f){return {explain:"Replace single-owner control with a multisig (Gnosis Safe) and add a timelock for sensitive ops.",code:'import "@openzeppelin/contracts/governance/TimelockController.sol";\n\n// Deploy Gnosis Safe at: https://app.safe.global\n// Then transfer ownership:\ncontract YourContract {\n    address public immutable timelock;\n    \n    constructor(address _timelock) {\n        timelock = _timelock;  // TimelockController address\n    }\n    \n    modifier onlyTimelock() {\n        require(msg.sender == timelock, "Only timelock");\n        _;\n    }\n}'};}
+    };
+    let currentFix = '';
+    function showAutofix(idx){
+        const f = lastReport.findings[idx];
+        if(!f) return;
+        const tpl = FIX_TEMPLATES[f.title];
+        const fix = tpl ? tpl(f) : {explain: f.fix || 'No template available for this finding type. Refer to the recommended fix above.', code: '// BaseAI is generating a custom fix...\n// (Generic template — adapt to your contract)\n\n'+(f.fix||'Manual review required.')};
+        currentFix = fix.code;
+        const body = '<div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px">'+esc(fix.explain)+'</div>'+
+            '<div class="autofix-pre-h">⚠️ Vulnerable Pattern</div>'+
+            '<div class="autofix-pre">'+esc(f.code||f.loc||'(see finding details)')+'</div>'+
+            '<div class="autofix-pre-h">✅ Recommended Fix</div>'+
+            '<div class="autofix-pre fix">'+esc(fix.code)+'</div>';
+        document.getElementById('autofixBody').innerHTML = body;
+        document.getElementById('autofixModal').classList.add('show');
+    }
+    function closeAutofix(){document.getElementById('autofixModal').classList.remove('show');}
+    function copyAutofix(){navigator.clipboard.writeText(currentFix).then(function(){toast('Fix copied!');});}
+    
+    // ===== CERTIFICATE =====
+    function downloadCertificate(){
+        if(!lastReport) return;
+        const r = lastReport, i = lastInfo;
+        const W=1200, H=675;
+        const canvas = document.createElement('canvas');
+        canvas.width=W; canvas.height=H;
+        const ctx = canvas.getContext('2d');
+        // Background gradient
+        const bg = ctx.createLinearGradient(0,0,W,H);
+        bg.addColorStop(0,'#0a0a14'); bg.addColorStop(0.5,'#16161e'); bg.addColorStop(1,'#0a0a14');
+        ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+        // Glow
+        const glow = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W/2);
+        glow.addColorStop(0,'rgba(0,82,255,0.15)'); glow.addColorStop(1,'rgba(0,82,255,0)');
+        ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+        // Border
+        ctx.strokeStyle='rgba(0,82,255,0.5)'; ctx.lineWidth=2;
+        ctx.strokeRect(30,30,W-60,H-60);
+        ctx.strokeStyle='rgba(0,82,255,0.2)'; ctx.lineWidth=1;
+        ctx.strokeRect(40,40,W-80,H-80);
+        // Header
+        ctx.fillStyle='#fff'; ctx.textAlign='center';
+        ctx.font='900 56px Inter,sans-serif';
+        ctx.fillText('🛡 BaseShield',W/2,140);
+        ctx.fillStyle='#a78bfa'; ctx.font='600 20px Inter,sans-serif';
+        ctx.fillText('SECURITY CERTIFICATE',W/2,180);
+        // Score circle
+        ctx.beginPath();
+        const cx=W/2, cy=340, rad=90;
+        ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fill();
+        ctx.lineWidth=8; ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.stroke();
+        // Score arc
+        ctx.beginPath();
+        const startAngle = -Math.PI/2;
+        const endAngle = startAngle + (Math.PI*2*(100-r.score)/100);
+        const sc = r.score < 20 ? '#22c55e' : r.score < 40 ? '#eab308' : r.score < 60 ? '#f97316' : '#ef4444';
+        ctx.strokeStyle=sc; ctx.lineWidth=8; ctx.lineCap='round';
+        ctx.arc(cx,cy,rad,startAngle,endAngle); ctx.stroke();
+        // Score text
+        ctx.fillStyle=sc; ctx.font='900 72px Inter,sans-serif'; ctx.textAlign='center';
+        ctx.fillText(r.score,cx,cy+5);
+        ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='600 14px Inter,sans-serif';
+        ctx.fillText('RISK / 100',cx,cy+35);
+        // Contract name
+        ctx.fillStyle='#fff'; ctx.font='800 36px Inter,sans-serif';
+        ctx.fillText(i?.name||'Smart Contract',W/2,490);
+        ctx.fillStyle='#a1a1aa'; ctx.font='500 16px Inter,sans-serif';
+        const meta = (i?.chain?CHAIN_NAMES[i.chain]+' · ':'') + (i?.address?i.address.slice(0,10)+'...'+i.address.slice(-8):'Manual Source');
+        ctx.fillText(meta,W/2,520);
+        // Verdict
+        const verdict = r.score < 20 ? '✅ AUDITED & SECURE' : r.score < 40 ? '⚠️ LOW RISK' : r.score < 60 ? '⚡ MEDIUM RISK' : '🚨 HIGH RISK';
+        ctx.fillStyle=sc; ctx.font='700 22px Inter,sans-serif';
+        ctx.fillText(verdict,W/2,565);
+        // Footer
+        ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='500 12px Inter,sans-serif';
+        ctx.fillText('Audited by BaseShield · Powered by AI · '+new Date().toLocaleDateString(),W/2,625);
+        // Download
+        canvas.toBlob(function(blob){
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'baseshield-cert-'+(i?.name||'contract')+'.png';
+            a.click();
+            toast('Certificate downloaded!');
+        });
+    }
+
+    // ===== FAMOUS HACKS GALLERY =====
+    const FAMOUS_HACKS = [
+        {
+            name: 'The DAO',
+            year: 2016,
+            loss: '$60M',
+            chain: 'Ethereum',
+            vuln: 'Reentrancy',
+            desc: 'The infamous reentrancy hack that led to the Ethereum/ETC fork. Withdraw before balance update.',
+            code: `pragma solidity ^0.4.0;\ncontract DAO {\n    mapping(address => uint) public balances;\n    function deposit() public payable {\n        balances[msg.sender] += msg.value;\n    }\n    // VULNERABLE: external call before state update\n    function withdraw() public {\n        uint amount = balances[msg.sender];\n        require(amount > 0);\n        (bool sent, ) = msg.sender.call{value: amount}("");\n        require(sent);\n        balances[msg.sender] = 0; // too late!\n    }\n}`
+        },
+        {
+            name: 'Parity Wallet Freeze',
+            year: 2017,
+            loss: '$280M',
+            chain: 'Ethereum',
+            vuln: 'Access Control / Selfdestruct',
+            desc: 'Anyone could call initWallet() on the library, become owner, then selfdestruct it — freezing all wallets.',
+            code: `pragma solidity ^0.4.0;\ncontract WalletLibrary {\n    address public owner;\n    // VULNERABLE: no access control on initialization\n    function initWallet(address _owner) public {\n        owner = _owner;\n    }\n    // VULNERABLE: anyone-as-owner can kill the lib\n    function kill() public {\n        require(msg.sender == owner);\n        selfdestruct(msg.sender);\n    }\n    function execute(address to, uint value) public {\n        require(msg.sender == owner);\n        to.call.value(value)("");\n    }\n}`
+        },
+        {
+            name: 'bZx Flash Loan',
+            year: 2020,
+            loss: '$8M',
+            chain: 'Ethereum',
+            vuln: 'Oracle Manipulation',
+            desc: 'Used DEX spot price as oracle. Flash loan moved DEX, contract read manipulated price.',
+            code: `pragma solidity ^0.6.0;\ninterface IDEX { function getPrice(address t) external view returns (uint); }\ncontract Lending {\n    IDEX dex;\n    mapping(address => uint) public collateral;\n    // VULNERABLE: spot price oracle from a single DEX\n    function borrow(address token, uint amount) public {\n        uint price = dex.getPrice(token);\n        require(collateral[msg.sender] * price >= amount * 100);\n        // ... transfer loan\n    }\n}`
+        },
+        {
+            name: 'Ronin Bridge',
+            year: 2022,
+            loss: '$625M',
+            chain: 'Ronin',
+            vuln: 'Centralized Validators',
+            desc: 'Only 9 validators, attacker compromised 5. Trust model failure baked into the contract design.',
+            code: `pragma solidity ^0.8.0;\ncontract RoninBridge {\n    address[] public validators;       // only 9!\n    uint public threshold = 5;          // 5/9 = single point of failure\n    mapping(bytes32 => mapping(address => bool)) signed;\n    // VULNERABLE: trusted validator set with low threshold + tx.origin checks elsewhere\n    function withdraw(bytes32 txHash, bytes[] calldata sigs) public {\n        require(sigs.length >= threshold);\n        // ... no slashing, no rotation, no timelock\n    }\n    modifier onlyOperator() {\n        require(tx.origin == validators[0]); // VULNERABLE: tx.origin\n        _;\n    }\n}`
+        },
+        {
+            name: 'Wormhole Bridge',
+            year: 2022,
+            loss: '$326M',
+            chain: 'Solana / Ethereum',
+            vuln: 'Signature Verification',
+            desc: 'Skipped signature verification on a sysvar account. Forged guardian signatures to mint 120k wETH.',
+            code: `pragma solidity ^0.8.0;\ncontract Wormhole {\n    bytes32 public guardianSetHash;\n    // VULNERABLE: weak signature verification, missing chain id check\n    function verifyVAA(bytes memory vaa, bytes[] memory sigs) public view returns (bool) {\n        // ... signature recovery\n        // BUG: didn't validate guardian set version/index\n        return sigs.length > 0; // accepts forged sigs\n    }\n    function completeTransfer(bytes calldata vaa, bytes[] calldata sigs) public {\n        require(verifyVAA(vaa, sigs));\n        // ... mint tokens\n    }\n}`
+        },
+        {
+            name: 'Euler Finance',
+            year: 2023,
+            loss: '$197M',
+            chain: 'Ethereum',
+            vuln: 'Donation / Liquidation Logic',
+            desc: 'donateToReserves() bypassed health check. Self-liquidated to drain protocol.',
+            code: `pragma solidity ^0.8.0;\ncontract Euler {\n    mapping(address => uint) public balances;\n    mapping(address => uint) public debts;\n    // VULNERABLE: donate path skipped checkLiquidity()\n    function donateToReserves(uint amount) public {\n        balances[msg.sender] -= amount;\n        // BUG: no health check after this\n    }\n    function liquidate(address user) public {\n        require(debts[user] > balances[user]);\n        // attacker self-liquidates after donating to fall below threshold\n    }\n}`
+        },
+        {
+            name: 'BNB Bridge',
+            year: 2022,
+            loss: '$570M',
+            chain: 'BSC',
+            vuln: 'Merkle Proof Forgery',
+            desc: 'IAVL Merkle proof verification bug — attacker forged proofs to mint 2M BNB.',
+            code: `pragma solidity ^0.8.0;\ncontract BridgeVerifier {\n    bytes32 public root;\n    // VULNERABLE: incomplete proof validation\n    function verifyProof(bytes32[] calldata proof, bytes32 leaf) public view returns (bool) {\n        bytes32 h = leaf;\n        for (uint i = 0; i < proof.length; i++) {\n            h = keccak256(abi.encodePacked(h, proof[i]));\n        }\n        // BUG: doesn't validate the path encoding — multiple leaves can collide\n        return h == root;\n    }\n}`
+        },
+        {
+            name: 'Curve Vyper',
+            year: 2023,
+            loss: '$70M',
+            chain: 'Ethereum',
+            vuln: 'Compiler Bug / Reentrancy Lock',
+            desc: 'Vyper 0.2.15 reentrancy lock was broken. Several Curve pools drained via classic reentrancy.',
+            code: `pragma solidity ^0.8.0;\ncontract CurvePool {\n    uint private _locked = 1;\n    modifier nonReentrant() {\n        require(_locked == 1);\n        _locked = 2;\n        _;\n        _locked = 1;\n    }\n    // VULNERABLE: external call inside nonReentrant + raw ETH callback re-enters\n    function remove_liquidity(uint amount) public nonReentrant {\n        (bool ok, ) = msg.sender.call{value: amount}("");\n        require(ok);\n        // state update after — and lock was buggy at compiler level\n    }\n}`
+        },
+        {
+            name: 'Poly Network',
+            year: 2021,
+            loss: '$610M',
+            chain: 'Multi-chain',
+            vuln: 'Cross-chain Function Forgery',
+            desc: 'EthCrossChainManager allowed arbitrary calls. Attacker forged keeper change message.',
+            code: `pragma solidity ^0.8.0;\ncontract EthCrossChainManager {\n    address public keeper;\n    // VULNERABLE: arbitrary call with no destination whitelist\n    function executeCrossChainTx(\n        address target,\n        bytes calldata method,\n        bytes calldata data\n    ) public {\n        // BUG: no check that 'target' is allow-listed\n        (bool ok, ) = target.call(abi.encodePacked(method, data));\n        require(ok);\n    }\n    function setKeeper(address k) public {\n        require(msg.sender == address(this)); // bypassed via executeCrossChainTx\n        keeper = k;\n    }\n}`
+        },
+        {
+            name: 'Nomad Bridge',
+            year: 2022,
+            loss: '$190M',
+            chain: 'Multi-chain',
+            vuln: 'Improper Initialization',
+            desc: '0x0 set as trusted root after init. Anyone could craft a "valid" message and drain it.',
+            code: `pragma solidity ^0.8.0;\ncontract NomadReplica {\n    mapping(bytes32 => bool) public confirmed;\n    bytes32 public committedRoot;\n    // VULNERABLE: post-init upgrade left committedRoot == 0x0\n    function process(bytes32 messageHash) public {\n        // BUG: confirmed[0x0] auto-true after init\n        require(confirmed[messageHash]);\n        // ... transfer\n    }\n    function initialize() public {\n        committedRoot = bytes32(0);\n        confirmed[bytes32(0)] = true; // catastrophic\n    }\n}`
+        },
+        {
+            name: 'Beanstalk',
+            year: 2022,
+            loss: '$182M',
+            chain: 'Ethereum',
+            vuln: 'Governance / Flash Loan',
+            desc: 'Used flash loan to gain majority voting power. Passed malicious proposal in single tx.',
+            code: `pragma solidity ^0.8.0;\ncontract BeanGov {\n    mapping(address => uint) public stakeOf;\n    // VULNERABLE: voting power based on instantaneous balance, no snapshot/time-lock\n    function vote(uint propId) public {\n        uint power = stakeOf[msg.sender]; // flash-loanable\n        // ... tally\n    }\n    function execute(uint propId) public {\n        // BUG: no timelock — proposal executes same block\n        // attacker: flashloan -> deposit -> propose -> vote -> execute -> withdraw\n    }\n}`
+        },
+        {
+            name: 'Fei Rari',
+            year: 2022,
+            loss: '$80M',
+            chain: 'Ethereum',
+            vuln: 'Reentrancy + Compound Fork',
+            desc: 'Compound v2 fork inherited the known reentrancy via callback in cTokens.',
+            code: `pragma solidity ^0.8.0;\ncontract CToken {\n    mapping(address => uint) public balanceOf;\n    // VULNERABLE: classic Compound v2 reentrancy on borrow with callback token\n    function borrow(uint amount) public {\n        // calls underlying.transfer which can call back\n        (bool ok, ) = address(underlying).call(abi.encodeWithSignature("transfer(address,uint256)", msg.sender, amount));\n        require(ok);\n        // state updated AFTER external call\n        balanceOf[msg.sender] -= amount;\n    }\n    address public underlying;\n}`
+        }
+    ];
+
+    function openHacks(){
+        const grid = document.getElementById('hacksGrid');
+        grid.innerHTML = FAMOUS_HACKS.map((h,i)=>`
+            <div class="hack-card" onclick="loadHack(${i})">
+                <div class="hack-loss">${h.loss}</div>
+                <div class="hack-name">${h.name}</div>
+                <div class="hack-meta"><span>${h.year}</span><span>${h.chain}</span><span>${h.vuln}</span></div>
+                <div class="hack-desc">${h.desc}</div>
+                <div class="hack-cta">⚡ Load & Audit →</div>
+            </div>
+        `).join('');
+        document.getElementById('hacksModal').classList.add('show');
+    }
+    function closeHacks(){document.getElementById('hacksModal').classList.remove('show');}
+    function loadHack(idx){
+        const h = FAMOUS_HACKS[idx];
+        switchTab('audit');
+        document.getElementById('input').value = h.code;
+        closeHacks();
+        toast('Loaded '+h.name+' — Click Analyze to find the bug');
+        setTimeout(function(){ window.scrollTo({top:document.getElementById('inputSection').offsetTop-20,behavior:'smooth'}); }, 200);
+    }
+
+    // ===== MIMO AI CHAT =====
+    let chatHistory = [];
+    function toggleChat(show){
+        const panel = document.getElementById('chatPanel');
+        const fab = document.getElementById('chatFab');
+        if(show){
+            panel.classList.add('show');
+            fab.classList.add('hidden');
+            setTimeout(function(){document.getElementById('chatInput').focus();},200);
+        } else {
+            panel.classList.remove('show');
+            fab.classList.remove('hidden');
+        }
+    }
+    function chatKey(e){
+        if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); chatSend(); }
+    }
+    function chatAsk(q){
+        document.getElementById('chatInput').value = q;
+        chatSend();
+    }
+    function chatAddMsg(role, text){
+        const body = document.getElementById('chatBody');
+        const div = document.createElement('div');
+        div.className = 'chat-msg '+role;
+        // basic markdown for code blocks and inline code
+        let html = text
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/```([\s\S]*?)```/g, function(_,c){return '<pre>'+c.trim()+'</pre>';})
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+        div.innerHTML = html;
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+        return div;
+    }
+    function chatTyping(on){
+        const body = document.getElementById('chatBody');
+        let t = document.getElementById('chatTyping');
+        if(on){
+            if(t) return;
+            t = document.createElement('div');
+            t.className = 'chat-typing';
+            t.id = 'chatTyping';
+            t.innerHTML = '<span></span><span></span><span></span>';
+            body.appendChild(t);
+            body.scrollTop = body.scrollHeight;
+        } else {
+            if(t) t.remove();
+        }
+    }
+    async function chatSend(){
+        const input = document.getElementById('chatInput');
+        const btn = document.getElementById('chatSendBtn');
+        const text = input.value.trim();
+        if(!text) return;
+        input.value = '';
+        // hide suggestions after first message
+        document.getElementById('chatSuggestions').style.display = 'none';
+        chatAddMsg('user', text);
+        chatHistory.push({role:'user', content: text});
+        btn.disabled = true;
+        chatTyping(true);
+        try {
+            const reply = await baseAsk(text);
+            chatTyping(false);
+            chatAddMsg('bot', reply);
+            chatHistory.push({role:'assistant', content: reply});
+        } catch(e){
+            chatTyping(false);
+            chatAddMsg('bot', '⚠️ '+(e.message||'Failed to reach BaseAI. Try again.'));
+        } finally {
+            btn.disabled = false;
+            input.focus();
+        }
+    }
+
+    // Settings: API key + provider preference (stored locally in browser)
+    function getApiSettings(){
+        try { return JSON.parse(localStorage.getItem('baseshield_api')||'{}'); } catch(e){ return {}; }
+    }
+    function setApiSettings(s){
+        localStorage.setItem('baseshield_api', JSON.stringify(s||{}));
+    }
+
+    function openSettings(){
+        const s = getApiSettings();
+        document.getElementById('settingsProvider').value = s.provider || 'mimo';
+        document.getElementById('settingsKey').value = s.mimoKey || '';
+        document.getElementById('settingsModel').value = s.mimoModel || 'mimo-v2.5-reasoning';
+        document.getElementById('settingsStatus').textContent = '';
+        toggleKeyBoxVisibility();
+        document.getElementById('settingsBackdrop').style.display = 'flex';
+    }
+    function closeSettings(){
+        document.getElementById('settingsBackdrop').style.display = 'none';
+    }
+    function toggleKeyBoxVisibility(){
+        const isMimo = document.getElementById('settingsProvider').value === 'mimo';
+        document.getElementById('settingsKeyBox').style.display = isMimo ? '' : 'none';
+        document.getElementById('settingsModelBox').style.display = isMimo ? '' : 'none';
+    }
+    function saveSettings(){
+        const provider = document.getElementById('settingsProvider').value;
+        const key = document.getElementById('settingsKey').value.trim();
+        const model = document.getElementById('settingsModel').value;
+        const settings = { provider };
+        if (provider === 'mimo' && key) {
+            settings.mimoKey = key;
+            settings.mimoModel = model;
+        }
+        setApiSettings(settings);
+        const status = document.getElementById('settingsStatus');
+        status.style.color = 'var(--ok)';
+        status.textContent = '✓ Saved. ' + (settings.mimoKey ? 'Using Xiaomi MiMo.' : 'Using free public endpoint.');
+        setTimeout(closeSettings, 900);
+    }
+    function clearSettings(){
+        setApiSettings({});
+        document.getElementById('settingsKey').value = '';
+        const status = document.getElementById('settingsStatus');
+        status.style.color = 'var(--text3)';
+        status.textContent = 'Cleared. Falling back to free endpoint.';
+    }
+    async function testApiKey(){
+        const key = document.getElementById('settingsKey').value.trim();
+        const model = document.getElementById('settingsModel').value;
+        const status = document.getElementById('settingsStatus');
+        if (!key) {
+            status.style.color = 'var(--warn)';
+            status.textContent = '⚠ No key entered.';
+            return;
+        }
+        status.style.color = 'var(--text3)';
+        status.textContent = 'Testing...';
+        try {
+            const r = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                body: JSON.stringify({ model, messages: [{role:'user', content:'ping'}], max_tokens: 10 })
+            });
+            const j = await r.json().catch(()=>null);
+            if (r.ok) {
+                status.style.color = 'var(--ok)';
+                status.textContent = '✓ Connection OK. Model responded.';
+            } else {
+                status.style.color = 'var(--err)';
+                status.textContent = '✗ ' + (j?.error?.message || ('HTTP ' + r.status));
+            }
+        } catch (e) {
+            status.style.color = 'var(--err)';
+            status.textContent = '✗ ' + (e.message || 'Network error');
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const sel = document.getElementById('settingsProvider');
+        if (sel) sel.addEventListener('change', toggleKeyBoxVisibility);
+    });
+
+    // Build context-aware system prompt and call BaseAI.
+    // Priority order:
+    //   1) Xiaomi MiMo API (if user provided their own key in settings)
+    //   2) Pollinations free public endpoint (no key, rate-limited demo)
+    //   3) Local rule-based fallback
+    async function baseAsk(userQ){
+        const sys = buildBaseAISystemPrompt();
+        const messages = [
+            {role:'system', content: sys},
+            ...chatHistory.slice(-8).filter(m=>m.role!=='system'),
+            {role:'user', content: userQ}
+        ];
+
+        const settings = getApiSettings();
+        const ENDPOINTS = [];
+
+        // Primary: Xiaomi MiMo API (OpenAI-compatible) — used when key is configured
+        if (settings.mimoKey) {
+            ENDPOINTS.push({
+                name: 'mimo',
+                url: 'https://api.xiaomimimo.com/v1/chat/completions',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + settings.mimoKey },
+                body: (m) => ({
+                    model: settings.mimoModel || 'mimo-v2.5-reasoning',
+                    messages: m,
+                    temperature: 0.3,
+                    max_tokens: 1024
+                })
+            });
+        }
+
+        // Fallback: free public endpoint (Pollinations) — keyless demo
+        ENDPOINTS.push({
+            name: 'pollinations',
+            url: 'https://text.pollinations.ai/openai',
+            headers: { 'Content-Type': 'application/json' },
+            body: (m) => ({ model: 'openai', messages: m, private: true })
+        });
+
+        for (const ep of ENDPOINTS) {
+            try {
+                const r = await fetch(ep.url, {
+                    method: 'POST',
+                    headers: ep.headers,
+                    body: JSON.stringify(ep.body(messages))
+                });
+                if (!r.ok) continue;
+                const ct = r.headers.get('content-type') || '';
+                let txt;
+                if (ct.includes('application/json')) {
+                    const j = await r.json();
+                    txt = j.choices?.[0]?.message?.content || j.message?.content || JSON.stringify(j);
+                } else {
+                    txt = await r.text();
+                }
+                txt = (txt || '').trim();
+                if (txt && txt.length > 4) return txt;
+            } catch (e) { /* try next */ }
+        }
+        // Last resort: local rule-based answer
+        return localBaseAIFallback(userQ);
+    }
+
+    function buildBaseAISystemPrompt(){
+        const settings = getApiSettings();
+        const engine = settings.mimoKey ? 'powered by Xiaomi MiMo V2.5' : 'powered by a free public AI endpoint';
+        let ctx = 'You are BaseAI, a smart contract security assistant integrated into BaseShield (' + engine + '). Be concise, technical, and helpful. Use Solidity code snippets in ```solidity blocks when useful. Focus on security: reentrancy, access control, oracle manipulation, MEV, signature replay, integer overflow, proxy patterns, gas, and DeFi-specific issues.';
+        if(typeof lastReport !== 'undefined' && lastReport && lastReport.findings){
+            const top = lastReport.findings.slice(0,5).map(f=>`- [${f.severity}] ${f.title}`).join('\n');
+            ctx += '\n\nThe user just audited a contract. Recent findings:\n'+top;
+            if(typeof lastInfo !== 'undefined' && lastInfo){
+                ctx += '\nContract: '+(lastInfo.name||'Unknown')+' on '+(CHAIN_NAMES[lastInfo.chain]||lastInfo.chain||'?');
+            }
+            ctx += '\nScore: '+lastReport.score+'/100';
+        }
+        return ctx;
+    }
+
+    function localBaseAIFallback(q){
+        const lo = q.toLowerCase();
+        if(lo.includes('reentrancy')) return '**Reentrancy** happens when an external call re-enters the contract before state updates finish.\n\n**Fix:** Use the checks-effects-interactions pattern, or OpenZeppelin `ReentrancyGuard`:\n```solidity\nfunction withdraw() external nonReentrant {\n    uint amount = balances[msg.sender];\n    balances[msg.sender] = 0; // effects FIRST\n    (bool ok,) = msg.sender.call{value: amount}("");\n    require(ok);\n}\n```';
+        if(lo.includes('access control') || lo.includes('onlyowner')) return '**Access control** = restricting who can call sensitive functions.\n\n**Fix:** Use OpenZeppelin `Ownable` or `AccessControl`:\n```solidity\nimport "@openzeppelin/contracts/access/Ownable.sol";\ncontract MyContract is Ownable {\n    function setFee(uint f) external onlyOwner { fee = f; }\n}\n```\nNever rely on `tx.origin` — use `msg.sender`.';
+        if(lo.includes('oracle')) return '**Oracle manipulation** — using DEX spot prices is dangerous; flash loans can move them.\n\n**Fix:** Use Chainlink, TWAPs, or multiple sources. Validate price age + deviation.\n```solidity\n(,int p,,uint t,) = oracle.latestRoundData();\nrequire(block.timestamp - t < 1 hours, "stale");\nrequire(p > 0, "bad price");\n```';
+        if(lo.includes('best practice') || lo.includes('top')) return '**Top 5 Solidity Security Practices:**\n1. **Checks-Effects-Interactions** — update state before external calls\n2. **Use OpenZeppelin** — battle-tested `Ownable`, `ReentrancyGuard`, `SafeERC20`\n3. **Avoid `tx.origin`** — use `msg.sender` for auth\n4. **Validate oracle data** — TWAPs, Chainlink, freshness checks\n5. **Pin compiler + run Slither/Echidna** — catch issues before deploy';
+        if(lo.includes('finding') || lo.includes('explain')) return 'I see you want detail on the latest audit findings. Make sure you ran an audit first — then I can pull the exact context. In the meantime, run **Audit Contract** tab and paste a contract address or source.';
+        return '🛡 I can help with: reentrancy, access control, oracle manipulation, MEV, signature replay, proxy patterns, gas optimization, and DeFi-specific bugs. Try asking about any of these. (Note: free AI endpoint may be temporarily down — fallback knowledge base active.)';
+    }
+    
+    </script>
+</body>
+</html>
